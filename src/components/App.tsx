@@ -14,6 +14,8 @@ import { CustomGpuEditor } from './CustomGpuEditor'
 import { ExportControls } from './ExportControls'
 import { ModelFamilyTabs } from './ModelFamilyTabs'
 import { TimeSeriesBreakdown } from './TimeSeriesBreakdown'
+import { TabularBreakdown } from './TabularBreakdown'
+import { ClassicalBreakdown } from './ClassicalBreakdown'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 import type { ModelFamily } from '../engine/types'
@@ -78,6 +80,8 @@ export default function App() {
         <section className="results-area">
           <AssumptionChips />
           <TimeSeriesBreakdown />
+          <TabularBreakdown />
+          <ClassicalBreakdown />
           <ResultCards />
           <FormulaTraceDrawer />
           <GpuComparisonTable />

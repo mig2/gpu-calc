@@ -99,9 +99,51 @@ export type TimeSeriesConfig = {
   memoryBytesPerParameter: number;
 };
 
+export type TabularTokenizationMode = 'row' | 'cell' | 'axial' | 'custom';
+
+export type TabularArchitectureType =
+  | 'row_transformer'
+  | 'cell_transformer'
+  | 'axial_transformer'
+  | 'tabpfn_icl'
+  | 'custom';
+
+export type TabularFoundationConfig = {
+  modelFamily: 'tabular_foundation';
+  modelParameters: number;
+  numberOfPretrainingTasks: number;
+  rowsPerTask: number;
+  columnsPerTask: number;
+  tokenizationMode: TabularTokenizationMode;
+  customTokensPerTask?: number;
+  epochs: number;
+  architectureType: TabularArchitectureType;
+  architectureFactor: number;
+  testTimeComputeMultiplier: number;
+  memoryBytesPerParameter: number;
+};
+
+export type GbdtAlgorithm = 'xgboost' | 'lightgbm' | 'catboost' | 'random_forest' | 'custom';
+
+export type ClassicalTabularConfig = {
+  modelFamily: 'classical_tabular';
+  algorithm: GbdtAlgorithm;
+  rows: number;
+  columns: number;
+  boostingRounds: number;
+  maxDepth: number;
+  bins: number;
+  cvFolds: number;
+  hyperparameterTrials: number;
+  cpuOrGpu: 'cpu' | 'gpu';
+  throughputCoefficient: number;  // work_units / second
+};
+
 export type Scenario =
   | (BaseHardwareConfig & LlmConfig)
-  | (BaseHardwareConfig & TimeSeriesConfig);
+  | (BaseHardwareConfig & TimeSeriesConfig)
+  | (BaseHardwareConfig & TabularFoundationConfig)
+  | (BaseHardwareConfig & ClassicalTabularConfig);
 
 export type AdapterResult = {
   effectiveTokens: number;

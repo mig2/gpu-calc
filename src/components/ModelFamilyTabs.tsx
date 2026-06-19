@@ -4,8 +4,8 @@ import type { ModelFamily } from '../engine/types'
 const TABS: { family: ModelFamily; label: string; enabled: boolean }[] = [
   { family: 'llm', label: 'LLM', enabled: true },
   { family: 'time_series_foundation', label: 'Time Series', enabled: true },
-  { family: 'tabular_foundation', label: 'Tabular', enabled: false },
-  { family: 'classical_tabular', label: 'Classical', enabled: false },
+  { family: 'tabular_foundation', label: 'Tabular', enabled: true },
+  { family: 'classical_tabular', label: 'Classical', enabled: true },
 ]
 
 export function ModelFamilyTabs() {
