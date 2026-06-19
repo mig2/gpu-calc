@@ -565,6 +565,52 @@ input:focus, select:focus {
   margin-bottom: 0.75rem;
 }
 
+/* Memory Feasibility */
+.binding-indicator {
+  margin: 0.5rem 0;
+  padding: 0.375rem 0.625rem;
+  border-radius: calc(var(--radius) / 2);
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.binding-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.compute-bound {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.compute-bound .binding-badge {
+  background: var(--accent);
+  color: white;
+}
+
+.compute-bound .binding-detail {
+  color: var(--text-muted);
+}
+
+.memory-bound {
+  background: var(--warning-bg);
+}
+
+.memory-bound .binding-badge {
+  background: var(--warning-border);
+  color: white;
+}
+
+.memory-bound .binding-detail {
+  color: var(--warning-text);
+}
+
 /* Calibration */
 .calibration-section {
   margin-top: 1.5rem;

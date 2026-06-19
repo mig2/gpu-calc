@@ -26,15 +26,36 @@ export function ResultCards() {
 
   return (
     <div className="result-cards">
-      {results.map((result) => (
+      {results.map((result) => {
+        const effectiveGpus = Math.max(result.requiredGpus, result.memoryLowerBoundGpus)
+        return (
         <div key={result.gpuId} className="result-card">
           <div className="result-card-header">
             <h3>{getGpuById(result.gpuId)?.label ?? result.gpuId}</h3>
           </div>
           <div className="result-gpu-count">
-            <span className="big-number">{result.requiredGpus.toLocaleString()}</span>
+            <span className="big-number">{effectiveGpus.toLocaleString()}</span>
             <span className="label">GPUs required</span>
           </div>
+          {result.memoryLowerBoundGpus > result.requiredGpus ? (
+            <div className="binding-indicator memory-bound">
+              <span className="binding-badge">Memory-bound</span>
+              <span className="binding-detail">
+                {result.memoryLowerBoundGpus.toLocaleString()} GPUs needed for memory
+                (vs {result.requiredGpus.toLocaleString()} for compute)
+              </span>
+            </div>
+          ) : (
+            <div className="binding-indicator compute-bound">
+              <span className="binding-badge">Compute-bound</span>
+              {result.memoryLowerBoundGpus > 1 && (
+                <span className="binding-detail">
+                  Memory needs {result.memoryLowerBoundGpus.toLocaleString()} GPUs
+                  (compute needs {result.requiredGpus.toLocaleString()})
+                </span>
+              )}
+            </div>
+          )}
           <dl className="result-details">
             <div>
               <dt>H100 equivalents</dt>
@@ -62,7 +83,8 @@ export function ResultCards() {
             </div>
           </dl>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
