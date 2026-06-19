@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Training GPU Calculator -- Help</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2e3346;
+    --text: #e1e4ed;
+    --text-muted: #8b90a0;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --warning-bg: #2d2315;
+    --warning-border: #92690a;
+    --warning-text: #fbbf24;
+    --radius: 8px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .back-link {
+    display: inline-block;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.875rem;
+    margin-bottom: 2rem;
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: all 0.15s;
+  }
+  .back-link:hover {
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  h2 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+  }
+
+  p {
+    margin-bottom: 0.75rem;
+    color: var(--text);
+  }
+
+  strong { color: var(--text); }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+  ul, ol {
+    margin-bottom: 0.75rem;
+    padding-left: 1.5rem;
+  }
+  li { margin-bottom: 0.35rem; }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--surface);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: var(--accent-hover);
+  }
+
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    overflow-x: auto;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+  }
+  th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td {
+    background: var(--surface);
+  }
+
+  .note {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.875rem;
+  }
+
+  .warning-note {
+    background: var(--warning-bg);
+    border-left: 3px solid var(--warning-border);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: 0.875rem;
+    color: var(--warning-text);
+  }
+
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .toc ol { margin-bottom: 0; }
+  .toc li { margin-bottom: 0.25rem; }
+  .toc a { font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<a href="/" class="back-link">&larr; Back to Calculator</a>
+
+<h1>LLM Training GPU Calculator</h1>
+<p style="color: var(--text-muted); margin-bottom: 2rem;">User Guide</p>
+
+<nav class="toc">
+<ol>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#quick-start">Quick Start</a></li>
+  <li><a href="#input-reference">Input Reference</a></li>
+  <li><a href="#modes">Functional Modes</a></li>
+  <li><a href="#math">The Math</a></li>
+  <li><a href="#gpu-skus">GPU SKU Reference</a></li>
+  <li><a href="#warnings">Warnings Explained</a></li>
+  <li><a href="#export">Export &amp; Share</a></li>
+  <li><a href="#custom-gpus">Custom GPUs</a></li>
+  <li><a href="#worked-example">Worked Example</a></li>
+  <li><a href="#references">References</a></li>
+</ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview</h2>
+
+<p>This calculator estimates the number of GPUs needed to train a dense decoder-only transformer language model within a target time window. It implements the standard <code>C = 6ND</code> training FLOP model with configurable assumptions for MFU, availability, overhead, and precision.</p>
+
+<p><strong>What it is for:</strong></p>
+<ul>
+  <li>Planning GPU cluster size for pretraining runs</li>
+  <li>Comparing GPU SKUs (H100, H200, B200, GB200) under the same assumptions</li>
+  <li>Sensitivity analysis across MFU and training window</li>
+  <li>Back-of-envelope validation of vendor or team estimates</li>
+</ul>
+
+<p><strong>What it is NOT for:</strong></p>
+<ul>
+  <li>Procurement commitments without empirical benchmarking</li>
+  <li>MoE, multimodal, or non-transformer architectures</li>
+  <li>Cost estimation or pricing</li>
+  <li>Predicting model quality, loss, or downstream performance</li>
+  <li>Detailed distributed-training parallelism planning (TP/PP/CP)</li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="quick-start">2. Quick Start</h2>
+
+<ol>
+  <li>Enter a <strong>model size</strong> (e.g. <code>70B</code>) and a <strong>training window</strong> (e.g. <code>30d</code>).</li>
+  <li>The calculator immediately shows the required GPU count using default assumptions: Chinchilla-20 token target, H100 SXM, 40% MFU, 90% availability, 1.10x overhead, BF16 precision.</li>
+  <li>Select additional GPUs to compare, or open Advanced Assumptions to tune.</li>
+</ol>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="input-reference">3. Input Reference</h2>
+
+<table>
+  <thead>
+    <tr><th>Input</th><th>Description</th><th>Default</th><th>Valid Range</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Model parameters</td><td>Number of trainable parameters</td><td>70B</td><td>Positive; M/B/T units</td></tr>
+    <tr><td>Training window</td><td>Wall-clock time budget</td><td>30 days</td><td>Positive; h/d/w units</td></tr>
+    <tr><td>Tokens per parameter</td><td>Training tokens = TPP &times; N</td><td>20</td><td>Positive integer</td></tr>
+    <tr><td>Training mode</td><td>Type of training run</td><td>Full pretraining</td><td>Full pretraining, Continued pretraining, SFT, LoRA, RLHF, Distillation</td></tr>
+    <tr><td>Precision</td><td>Numerical format</td><td>BF16 Dense</td><td>BF16 Dense, FP8 Dense</td></tr>
+    <tr><td>GPU SKU</td><td>Accelerator type(s)</td><td>H100 SXM</td><td>Multi-select; includes custom</td></tr>
+    <tr><td>MFU</td><td>Model FLOP utilization</td><td>40% (varies by SKU)</td><td>0&ndash;100%</td></tr>
+    <tr><td>Availability</td><td>Useful wall-clock fraction</td><td>90%</td><td>0&ndash;100%</td></tr>
+    <tr><td>Overhead factor</td><td>Checkpointing, eval, restarts</td><td>1.10x</td><td>&ge; 1.0</td></tr>
+    <tr><td>Memory bytes/param</td><td>State memory estimate</td><td>16</td><td>Positive</td></tr>
+  </tbody>
+</table>
+
+<h3>Unit Shortcuts</h3>
+<ul>
+  <li>Model size: <code>7B</code>, <code>70B</code>, <code>1.5T</code>, <code>405M</code></li>
+  <li>Training window: <code>30d</code> (days), <code>720h</code> (hours), <code>4w</code> (weeks)</li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="modes">4. Functional Modes</h2>
+
+<h3>4.1 Quick Estimate</h3>
+<p>Enter model size and training window. The calculator uses Chinchilla-20 defaults and shows a single H100 GPU count. This is the minimum-input mode for napkin math.</p>
+
+<h3>4.2 Advanced Estimate</h3>
+<p>Expand the Advanced Assumptions panel to control:</p>
+<ul>
+  <li><strong>MFU</strong> &mdash; per-GPU utilization (30% conservative, 40% planning, 50% strong)</li>
+  <li><strong>Availability</strong> &mdash; fraction of wall-clock time spent training</li>
+  <li><strong>Overhead</strong> &mdash; extra compute from checkpointing, evaluation, data stalls</li>
+  <li><strong>Precision</strong> &mdash; BF16 (standard) or FP8 (experimental)</li>
+  <li><strong>Tokens per parameter</strong> &mdash; override the Chinchilla-20 default</li>
+</ul>
+<p>All results update live as you adjust sliders.</p>
+
+<h3>4.3 GPU Comparison</h3>
+<p>Select multiple GPU SKUs in the GPU selector. The comparison table shows side-by-side:</p>
+<ul>
+  <li>Required GPU count per SKU</li>
+  <li>H100-equivalent count (normalized comparison)</li>
+  <li>Sustained FLOP/s per GPU</li>
+  <li>Memory lower-bound GPUs</li>
+</ul>
+<p>A bar chart visualizes the GPU counts for quick visual comparison.</p>
+
+<h3>4.4 Sensitivity Matrix</h3>
+<p>The sensitivity matrix shows GPU counts across a grid of MFU values (rows) and training windows (columns). This reveals how sensitive your estimate is to the two largest unknowns. Cells are heat-mapped so larger clusters stand out visually.</p>
+
+<h3>4.5 Reverse Solve</h3>
+<p>Two sub-modes:</p>
+<p><strong>Time from GPU budget:</strong> Given a fixed GPU count and model size, how long will training take?</p>
+<ul>
+  <li>Enter your available GPU count</li>
+  <li>The calculator returns training time in days</li>
+</ul>
+<p><strong>Size from GPU budget:</strong> Given a fixed GPU count and training window, what is the largest model you can train?</p>
+<ul>
+  <li>Enter your available GPU count</li>
+  <li>Uses the quadratic relationship: <code>N = sqrt(available_FLOPs / (6 * TPP * overhead))</code></li>
+</ul>
+
+<h3>4.6 Calibration</h3>
+<p>Back-solve achieved MFU from a known training run. Enter model size, tokens trained, wall-clock days, GPU count, and GPU type. The calculator returns the achieved MFU percentage.</p>
+<p>If the result is between 10&ndash;70%, it is considered reasonable. You can apply the calibrated MFU to your current scenario for more accurate future planning.</p>
+
+<h3>4.7 Memory Feasibility</h3>
+<p>Every result includes a memory feasibility check:</p>
+<pre><code>memory_lower_bound_GPUs = ceil(N * bytes_per_param / (GPU_memory * 0.85))</code></pre>
+<p>If the memory lower bound exceeds the compute requirement, the result is flagged as <strong>memory-bound</strong>. This indicates the model needs more GPUs than compute alone would suggest, due to optimizer states, gradients, and parameter storage.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="math">5. The Math</h2>
+
+<h3>Token Target</h3>
+<pre><code>D = TPP * N</code></pre>
+<p>Where D is training tokens, TPP is tokens-per-parameter (default 20), and N is model parameters. Under Chinchilla-20, a 70B model trains on 1.4T tokens.</p>
+
+<h3>Training FLOPs</h3>
+<pre><code>C = 6 * N * D</code></pre>
+<p>The factor of 6 accounts for the forward pass (2ND) and backward pass (4ND) in a dense decoder-only transformer. With overhead:</p>
+<pre><code>C_total = 6 * N * D * overhead_factor</code></pre>
+
+<h3>Sustained Throughput</h3>
+<pre><code>sustained_per_GPU = peak_FLOP/s * MFU * availability</code></pre>
+<ul>
+  <li><code>peak_FLOP/s</code> &mdash; dense tensor-core throughput for the selected precision</li>
+  <li><code>MFU</code> &mdash; fraction of peak actually delivered during training</li>
+  <li><code>availability</code> &mdash; fraction of wall-clock time spent doing useful training</li>
+</ul>
+
+<h3>GPU Count</h3>
+<pre><code>GPUs = ceil(C_total / (training_window_seconds * sustained_per_GPU))</code></pre>
+
+<h3>The Quadratic Dependence</h3>
+<p>Because <code>D = TPP * N</code>, total compute is:</p>
+<pre><code>C = 6 * TPP * N^2</code></pre>
+<div class="warning-note">
+  Doubling the model size quadruples the compute. This is the single most important scaling intuition.
+</div>
+
+<h3>H100-Equivalent Conversion</h3>
+<pre><code>H100_equivalents = (required_GPUs * sustained_per_GPU) / sustained_per_H100</code></pre>
+<p>Normalizes any GPU type to an H100-equivalent count for apples-to-apples comparison.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="gpu-skus">6. GPU SKU Reference</h2>
+
+<table>
+  <thead>
+    <tr><th>GPU</th><th>Dense BF16 Peak</th><th>Dense FP8 Peak</th><th>Memory</th><th>Bandwidth</th><th>Default MFU</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>H100 SXM</td><td>989.5 TFLOP/s</td><td>1,979 TFLOP/s</td><td>80 GB</td><td>3.35 TB/s</td><td>40%</td></tr>
+    <tr><td>H200 SXM</td><td>989.5 TFLOP/s</td><td>1,979 TFLOP/s</td><td>141 GB</td><td>4.8 TB/s</td><td>45%</td></tr>
+    <tr><td>B200 SXM / HGX B200</td><td>2,250 TFLOP/s</td><td>4,500 TFLOP/s</td><td>175 GB</td><td>&mdash;</td><td>40%</td></tr>
+    <tr><td>GB200 NVL72 (per GPU)</td><td>2,500 TFLOP/s</td><td>5,000 TFLOP/s</td><td>186 GB</td><td>8.0 TB/s</td><td>40%</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>H100 vs H200:</strong> These have identical raw dense BF16 peak FLOP/s. The H200 advantage is 76% more HBM capacity (141 vs 80 GB) and 43% more bandwidth (4.8 vs 3.35 TB/s). This allows larger microbatches, longer contexts, less activation checkpointing, and less aggressive sharding &mdash; all of which can improve achieved MFU. The calculator models this by giving H200 a higher default MFU (45% vs 40%), not a higher peak.
+</div>
+
+<div class="note">
+  <strong>Dense vs Sparse:</strong> NVIDIA spec sheets often quote sparse tensor-core throughput. Dense values (used here) are approximately half the sparse numbers. This calculator uses dense values exclusively since dense training is the standard approach.
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="warnings">7. Warnings Explained</h2>
+
+<table>
+  <thead>
+    <tr><th>Warning</th><th>Trigger</th><th>What To Do</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Large-cluster warning</td>
+      <td>Model &gt;70B and window &lt;14 days</td>
+      <td>Expect significant operational complexity. Consider longer windows or staged training.</td>
+    </tr>
+    <tr>
+      <td>Distributed-systems warning</td>
+      <td>Required GPUs &gt;1,024</td>
+      <td>Networking, checkpointing, stragglers, and cluster fragmentation become major factors.</td>
+    </tr>
+    <tr>
+      <td>Training mode warning</td>
+      <td>Mode is not Full Pretraining</td>
+      <td>The 6ND formula is calibrated for full pretraining. SFT/LoRA/RLHF typically need far less compute.</td>
+    </tr>
+    <tr>
+      <td>FP8 warning</td>
+      <td>FP8 precision selected</td>
+      <td>FP8 end-to-end training is experimental. Actual throughput may differ from peak-based estimates.</td>
+    </tr>
+    <tr>
+      <td>H200 note</td>
+      <td>H200 selected</td>
+      <td>Reminder that H200 has the same raw BF16 peak as H100. Advantage is memory and bandwidth.</td>
+    </tr>
+    <tr>
+      <td>Memory bound exceeds compute</td>
+      <td>Memory lower-bound GPUs &gt; compute GPUs</td>
+      <td>The model's state memory requires more GPUs than compute alone. Cluster is memory-constrained.</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="export">8. Export &amp; Share</h2>
+
+<p>The calculator supports four export formats:</p>
+<ul>
+  <li><strong>JSON</strong> &mdash; full scenario and results for programmatic use</li>
+  <li><strong>CSV</strong> &mdash; tabular results for spreadsheets</li>
+  <li><strong>Markdown</strong> &mdash; formatted summary for docs, Slack, or email</li>
+  <li><strong>Share URL</strong> &mdash; all scenario parameters encoded in the URL hash fragment</li>
+</ul>
+
+<p>The share URL encodes model size, training window, TPP, GPU selections, MFU overrides, precision, availability, overhead, training mode, and memory bytes per parameter. Paste it in a browser to restore the exact scenario.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="custom-gpus">9. Custom GPUs</h2>
+
+<ol>
+  <li>Open the <strong>Custom GPU</strong> section in the left panel.</li>
+  <li>Enter a label, dense BF16 peak (TFLOP/s), optional FP8 peak, memory (GB), and default MFU.</li>
+  <li>Click &ldquo;Add GPU&rdquo;.</li>
+  <li>The custom GPU appears in the GPU selector and can be used in all modes.</li>
+</ol>
+
+<p>Custom GPUs are stored in the browser session. They participate in comparison, sensitivity, and reverse solve like built-in SKUs.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="worked-example">10. Worked Example: 70B Model, 30 Days, H100</h2>
+
+<p><strong>Inputs:</strong> N = 70B, window = 30 days, TPP = 20, H100 SXM, MFU = 40%, availability = 90%, overhead = 1.10x, BF16.</p>
+
+<h3>Step 1: Token target</h3>
+<pre><code>D = 20 * 70e9 = 1.4e12 tokens (1.4 trillion)</code></pre>
+
+<h3>Step 2: Base FLOPs</h3>
+<pre><code>C_base = 6 * 70e9 * 1.4e12 = 5.88e23 FLOPs</code></pre>
+
+<h3>Step 3: Total FLOPs with overhead</h3>
+<pre><code>C_total = 5.88e23 * 1.10 = 6.47e23 FLOPs</code></pre>
+
+<h3>Step 4: Sustained throughput per H100</h3>
+<pre><code>sustained = 989.5e12 * 0.40 * 0.90 = 3.56e14 FLOP/s</code></pre>
+
+<h3>Step 5: Training window in seconds</h3>
+<pre><code>seconds = 30 * 86,400 = 2,592,000</code></pre>
+
+<h3>Step 6: Required GPUs</h3>
+<pre><code>GPUs = ceil(6.47e23 / (2,592,000 * 3.56e14)) = 701</code></pre>
+
+<div class="note" style="font-size: 1rem;">
+  <strong>Result: 701 H100 SXM GPUs.</strong>
+</div>
+
+<h3>Sensitivity</h3>
+<table>
+  <thead>
+    <tr><th>MFU</th><th>H100 GPUs</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>30%</td><td>~935</td></tr>
+    <tr><td>40%</td><td>~701</td></tr>
+    <tr><td>50%</td><td>~561</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="references">11. References</h2>
+
+<ul>
+  <li><strong>[R1]</strong> Hoffmann et al., <em>Training Compute-Optimal Large Language Models</em> (Chinchilla), arXiv:2203.15556, 2022. <a href="https://arxiv.org/abs/2203.15556">arxiv.org/abs/2203.15556</a></li>
+  <li><strong>[R2]</strong> Epoch AI, <em>Chinchilla scaling: A replication attempt</em>, Apr. 2024. <a href="https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt">epoch.ai</a></li>
+  <li><strong>[R3]</strong> NVIDIA H100 GPU specifications. <a href="https://www.nvidia.com/en-us/data-center/h100/">nvidia.com/h100</a></li>
+  <li><strong>[R4]</strong> NVIDIA H200 GPU specifications. <a href="https://www.nvidia.com/en-us/data-center/h200/">nvidia.com/h200</a></li>
+  <li><strong>[R5]</strong> NVIDIA HGX B200 specifications. <a href="https://www.nvidia.com/en-us/data-center/hgx/">nvidia.com/hgx</a></li>
+  <li><strong>[R6]</strong> NVIDIA GB200 NVL72 specifications. <a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/">nvidia.com/gb200-nvl72</a></li>
+  <li><strong>[R7]</strong> Sardana et al., <em>Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws</em>, arXiv:2401.00448, 2024. <a href="https://arxiv.org/abs/2401.00448">arxiv.org/abs/2401.00448</a></li>
+</ul>
+
+<hr>
+
+<p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center;">
+  LLM Training GPU Calculator &mdash; GPU data as of 2026-06-18
+</p>
+
+</div>
+</body>
+</html>

@@ -32,7 +32,12 @@ export default function App() {
         <p className="subtitle">
           Estimate accelerator requirements for training dense language models
         </p>
-        <ExportControls />
+        <div className="header-actions">
+          <ExportControls />
+          <a href="/help.html" target="_blank" rel="noopener noreferrer" className="help-link">
+            Help
+          </a>
+        </div>
       </header>
       <main className="app-main">
         <aside className="input-rail">
