@@ -30,6 +30,8 @@ export type TrainingScenario = {
   overheadFactor: number;          // >= 1.0
   trainingMode: TrainingMode;
   memoryBytesPerParameter: number;
+  architectureFactor?: number;     // default 6
+  trainingTokensOverride?: number; // optional, overrides TPP × N
 };
 
 export type EstimateResult = {

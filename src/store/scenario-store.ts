@@ -70,6 +70,8 @@ type ScenarioStore = {
   setAvailability: (availability: number) => void;
   setOverheadFactor: (overhead: number) => void;
   setMemoryBytesPerParameter: (bytes: number) => void;
+  setArchitectureFactor: (factor: number) => void;
+  setTrainingTokensOverride: (tokens: number | undefined) => void;
   addCustomGpu: (gpu: GpuSku) => void;
   removeCustomGpu: (id: string) => void;
   setScenario: (scenario: TrainingScenario) => void;
@@ -251,6 +253,18 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   setMemoryBytesPerParameter: (bytes) =>
     set((state) => {
       const scenario = { ...state.scenario, memoryBytesPerParameter: bytes };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
+    }),
+
+  setArchitectureFactor: (factor) =>
+    set((state) => {
+      const scenario = { ...state.scenario, architectureFactor: factor };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
+    }),
+
+  setTrainingTokensOverride: (tokens) =>
+    set((state) => {
+      const scenario = { ...state.scenario, trainingTokensOverride: tokens };
       return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 

@@ -6,11 +6,14 @@ import { Tooltip } from './Tooltip'
 export function AdvancedAssumptions() {
   const [open, setOpen] = useState(false)
   const scenario = useScenarioStore((s) => s.scenario)
+  const modelFamily = useScenarioStore((s) => s.modelFamily)
   const {
     setMfuForGpu,
     setAvailability,
     setOverheadFactor,
     setMemoryBytesPerParameter,
+    setArchitectureFactor,
+    setTrainingTokensOverride,
   } = useScenarioStore()
 
   return (
@@ -112,6 +115,52 @@ export function AdvancedAssumptions() {
               aria-label="Memory bytes per parameter"
             />
           </fieldset>
+
+          {modelFamily === 'llm' && (
+            <>
+              <fieldset>
+                <legend>
+                  <Tooltip text="Multiplier in the compute formula (default 6 for standard dense transformers). Adjust for non-standard architectures.">
+                    Architecture Factor
+                  </Tooltip>
+                </legend>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={scenario.architectureFactor ?? 6}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value)
+                    if (val > 0) setArchitectureFactor(val)
+                  }}
+                  aria-label="Architecture factor"
+                />
+              </fieldset>
+
+              <fieldset>
+                <legend>
+                  <Tooltip text="Override the total training tokens (instead of TPP × N). Accepts scientific notation like 1.4e12. Leave blank to use TPP × N.">
+                    Training Tokens Override
+                  </Tooltip>
+                </legend>
+                <input
+                  type="text"
+                  placeholder="e.g. 1.4e12 (blank = TPP × N)"
+                  value={scenario.trainingTokensOverride != null ? String(scenario.trainingTokensOverride) : ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.trim()
+                    if (raw === '') {
+                      setTrainingTokensOverride(undefined)
+                    } else {
+                      const val = Number(raw)
+                      if (!isNaN(val) && val > 0) setTrainingTokensOverride(val)
+                    }
+                  }}
+                  aria-label="Training tokens override"
+                />
+              </fieldset>
+            </>
+          )}
         </div>
       )}
     </div>
