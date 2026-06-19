@@ -13,6 +13,7 @@ import { WarningsPanel } from './WarningsPanel'
 import { CustomGpuEditor } from './CustomGpuEditor'
 import { ExportControls } from './ExportControls'
 import { ModelFamilyTabs } from './ModelFamilyTabs'
+import { TimeSeriesBreakdown } from './TimeSeriesBreakdown'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 
@@ -72,6 +73,7 @@ export default function App() {
         </aside>
         <section className="results-area">
           <AssumptionChips />
+          <TimeSeriesBreakdown />
           <ResultCards />
           <FormulaTraceDrawer />
           <GpuComparisonTable />

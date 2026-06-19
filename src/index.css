@@ -789,6 +789,9 @@ input:focus, select:focus {
   padding: 1rem 0;
 }
 
+.ts-breakdown { margin-bottom: 1rem; }
+.ts-breakdown h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
