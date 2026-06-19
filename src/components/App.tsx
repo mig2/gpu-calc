@@ -8,6 +8,7 @@ import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
 import { ReverseSolve } from './ReverseSolve'
+import { CalibrationMode } from './CalibrationMode'
 import { WarningsPanel } from './WarningsPanel'
 import { CustomGpuEditor } from './CustomGpuEditor'
 import { ExportControls } from './ExportControls'
@@ -47,6 +48,7 @@ export default function App() {
           <GpuComparisonTable />
           <SensitivityMatrix />
           <ReverseSolve />
+          <CalibrationMode />
           <WarningsPanel />
         </section>
       </main>

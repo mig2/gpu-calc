@@ -565,6 +565,46 @@ input:focus, select:focus {
   margin-bottom: 0.75rem;
 }
 
+/* Calibration */
+.calibration-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.calibration-content {
+  margin-top: 0.75rem;
+}
+
+.calibration-result {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.big-number.unreasonable {
+  color: var(--danger);
+}
+
+.apply-mfu-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.apply-mfu-btn:hover {
+  background: var(--accent-hover);
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
