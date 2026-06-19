@@ -53,6 +53,17 @@ export function estimateTrainingRun(
       `Distributed-systems warning: ${hwResult.requiredGpus.toLocaleString()} GPUs implies challenges with networking, checkpointing, stragglers, and cluster fragmentation.`,
     );
   }
+  if (hwResult.requiredGpus > 10000) {
+    warnings.push(
+      `Hyperscale warning: ${hwResult.requiredGpus.toLocaleString()} GPUs implies a multi-rack, multi-datacenter-class deployment with extreme operational complexity.`,
+    );
+  }
+  const mfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+  if (mfu > 0.60) {
+    warnings.push(
+      `Optimistic MFU warning: ${(mfu * 100).toFixed(0)}% MFU exceeds typical achieved utilization. Most production runs achieve 30-50%.`,
+    );
+  }
   if (gpu.id === 'h200-sxm') {
     warnings.push(
       'H200 has the same raw dense BF16 peak as H100. Its advantage is more HBM capacity and bandwidth, which can improve achieved MFU in memory-stressed runs.',

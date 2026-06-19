@@ -141,6 +141,17 @@ function computeResults(
             `Distributed-systems warning: ${hwResult.requiredGpus.toLocaleString()} GPUs implies challenges with networking, checkpointing, stragglers, and cluster fragmentation.`,
           );
         }
+        if (hwResult.requiredGpus > 10000) {
+          warnings.push(
+            `Hyperscale warning: ${hwResult.requiredGpus.toLocaleString()} GPUs implies a multi-rack, multi-datacenter-class deployment with extreme operational complexity.`,
+          );
+        }
+        const mfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+        if (mfu > 0.60) {
+          warnings.push(
+            `Optimistic MFU warning: ${(mfu * 100).toFixed(0)}% MFU exceeds typical achieved utilization. Most production runs achieve 30-50%.`,
+          );
+        }
         if (hwResult.memoryLowerBoundGpus > hwResult.requiredGpus) {
           warnings.push(
             `Memory bound exceeds compute bound: at least ${hwResult.memoryLowerBoundGpus} GPUs needed for model state memory alone (vs ${hwResult.requiredGpus} for compute).`,
