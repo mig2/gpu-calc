@@ -8,6 +8,7 @@ import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
 import { ReverseSolve } from './ReverseSolve'
 import { WarningsPanel } from './WarningsPanel'
+import { CustomGpuEditor } from './CustomGpuEditor'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <ScenarioForm />
           <GpuSelector />
           <AdvancedAssumptions />
+          <CustomGpuEditor />
         </aside>
         <section className="results-area">
           <AssumptionChips />

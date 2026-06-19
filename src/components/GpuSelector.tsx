@@ -4,6 +4,8 @@ import { GPU_SKUS } from '../engine/gpu-data'
 export function GpuSelector() {
   const selectedGpuIds = useScenarioStore((s) => s.scenario.selectedGpuIds)
   const setSelectedGpuIds = useScenarioStore((s) => s.setSelectedGpuIds)
+  const customGpus = useScenarioStore((s) => s.customGpus)
+  const allGpus = [...GPU_SKUS, ...customGpus]
 
   function toggleGpu(id: string) {
     if (selectedGpuIds.includes(id)) {
@@ -19,7 +21,7 @@ export function GpuSelector() {
     <div className="gpu-selector">
       <h3>GPU SKUs</h3>
       <div className="gpu-checkboxes">
-        {GPU_SKUS.map((gpu) => (
+        {allGpus.map((gpu) => (
           <label key={gpu.id}>
             <input
               type="checkbox"

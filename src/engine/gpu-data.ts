@@ -44,8 +44,15 @@ export const GPU_SKUS: GpuSku[] = [
 
 export const H100_REFERENCE_ID = 'h100-sxm';
 
+/** Optional extra GPUs to search (set by the store for custom GPUs) */
+let _extraGpus: GpuSku[] = [];
+
+export function setExtraGpus(gpus: GpuSku[]) {
+  _extraGpus = gpus;
+}
+
 export function getGpuById(id: string): GpuSku | undefined {
-  return GPU_SKUS.find((g) => g.id === id);
+  return GPU_SKUS.find((g) => g.id === id) ?? _extraGpus.find((g) => g.id === id);
 }
 
 export function getH100Reference(): GpuSku {

@@ -1,11 +1,29 @@
 import { create } from 'zustand';
-import type { TrainingScenario, EstimateResult, Precision, TrainingMode } from '../engine/types';
+import type { TrainingScenario, EstimateResult, Precision, TrainingMode, GpuSku } from '../engine/types';
 import { estimateTrainingRun } from '../engine/calculator';
-import { GPU_SKUS, getGpuById, getH100Reference } from '../engine/gpu-data';
+import { GPU_SKUS, getGpuById, getH100Reference, setExtraGpus } from '../engine/gpu-data';
+
+function loadCustomGpus(): GpuSku[] {
+  try {
+    const saved = localStorage.getItem('gpu-calc-custom-gpus');
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCustomGpus(gpus: GpuSku[]) {
+  localStorage.setItem('gpu-calc-custom-gpus', JSON.stringify(gpus));
+}
+
+export function getAllGpus(customGpus: GpuSku[]): GpuSku[] {
+  return [...GPU_SKUS, ...customGpus];
+}
 
 type ScenarioStore = {
   scenario: TrainingScenario;
   results: EstimateResult[];
+  customGpus: GpuSku[];
 
   setModelParameters: (params: number) => void;
   setTokensPerParameter: (tpp: number) => void;
@@ -17,6 +35,8 @@ type ScenarioStore = {
   setAvailability: (availability: number) => void;
   setOverheadFactor: (overhead: number) => void;
   setMemoryBytesPerParameter: (bytes: number) => void;
+  addCustomGpu: (gpu: GpuSku) => void;
+  removeCustomGpu: (id: string) => void;
 };
 
 const defaultScenario: TrainingScenario = {
@@ -32,52 +52,57 @@ const defaultScenario: TrainingScenario = {
   memoryBytesPerParameter: 16,
 };
 
-function computeResults(scenario: TrainingScenario): EstimateResult[] {
+function computeResults(scenario: TrainingScenario, customGpus: GpuSku[]): EstimateResult[] {
   const h100 = getH100Reference();
+  const allGpus = getAllGpus(customGpus);
   return scenario.selectedGpuIds
-    .map((id) => getGpuById(id))
+    .map((id) => allGpus.find((g) => g.id === id) ?? getGpuById(id))
     .filter((gpu): gpu is NonNullable<typeof gpu> => gpu != null)
     .map((gpu) => estimateTrainingRun(scenario, gpu, h100));
 }
 
-export const useScenarioStore = create<ScenarioStore>((set) => ({
+const initialCustomGpus = loadCustomGpus();
+setExtraGpus(initialCustomGpus);
+
+export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   scenario: defaultScenario,
-  results: computeResults(defaultScenario),
+  results: computeResults(defaultScenario, initialCustomGpus),
+  customGpus: initialCustomGpus,
 
   setModelParameters: (params) =>
     set((state) => {
       const scenario = { ...state.scenario, modelParameters: params };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setTokensPerParameter: (tpp) =>
     set((state) => {
       const scenario = { ...state.scenario, tokensPerParameter: tpp };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setTrainingWindowSeconds: (seconds) =>
     set((state) => {
       const scenario = { ...state.scenario, trainingWindowSeconds: seconds };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setPrecision: (precision) =>
     set((state) => {
       const scenario = { ...state.scenario, precision };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setTrainingMode: (mode) =>
     set((state) => {
       const scenario = { ...state.scenario, trainingMode: mode };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setSelectedGpuIds: (ids) =>
     set((state) => {
       const scenario = { ...state.scenario, selectedGpuIds: ids };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setMfuForGpu: (gpuId, mfu) =>
@@ -86,24 +111,49 @@ export const useScenarioStore = create<ScenarioStore>((set) => ({
         ...state.scenario,
         mfuByGpuId: { ...state.scenario.mfuByGpuId, [gpuId]: mfu },
       };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setAvailability: (availability) =>
     set((state) => {
       const scenario = { ...state.scenario, availability };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setOverheadFactor: (overhead) =>
     set((state) => {
       const scenario = { ...state.scenario, overheadFactor: overhead };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
     }),
 
   setMemoryBytesPerParameter: (bytes) =>
     set((state) => {
       const scenario = { ...state.scenario, memoryBytesPerParameter: bytes };
-      return { scenario, results: computeResults(scenario) };
+      return { scenario, results: computeResults(scenario, state.customGpus) };
+    }),
+
+  addCustomGpu: (gpu) =>
+    set((state) => {
+      const customGpus = [...state.customGpus, gpu];
+      saveCustomGpus(customGpus);
+      setExtraGpus(customGpus);
+      const scenario = {
+        ...state.scenario,
+        mfuByGpuId: { ...state.scenario.mfuByGpuId, [gpu.id]: gpu.defaultMfu },
+      };
+      return { customGpus, scenario, results: computeResults(scenario, customGpus) };
+    }),
+
+  removeCustomGpu: (id) =>
+    set((state) => {
+      const customGpus = state.customGpus.filter((g) => g.id !== id);
+      saveCustomGpus(customGpus);
+      setExtraGpus(customGpus);
+      const selectedGpuIds = state.scenario.selectedGpuIds.filter((gid) => gid !== id);
+      const scenario = {
+        ...state.scenario,
+        selectedGpuIds: selectedGpuIds.length > 0 ? selectedGpuIds : ['h100-sxm'],
+      };
+      return { customGpus, scenario, results: computeResults(scenario, customGpus) };
     }),
 }));
