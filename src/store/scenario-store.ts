@@ -37,6 +37,7 @@ type ScenarioStore = {
   setMemoryBytesPerParameter: (bytes: number) => void;
   addCustomGpu: (gpu: GpuSku) => void;
   removeCustomGpu: (id: string) => void;
+  setScenario: (scenario: TrainingScenario) => void;
 };
 
 const defaultScenario: TrainingScenario = {
@@ -156,4 +157,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
       };
       return { customGpus, scenario, results: computeResults(scenario, customGpus) };
     }),
+
+  setScenario: (scenario) =>
+    set((state) => ({ scenario, results: computeResults(scenario, state.customGpus) })),
 }));

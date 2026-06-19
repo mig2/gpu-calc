@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { ScenarioForm } from './ScenarioForm'
 import { GpuSelector } from './GpuSelector'
 import { AdvancedAssumptions } from './AdvancedAssumptions'
@@ -9,8 +10,20 @@ import { SensitivityMatrix } from './SensitivityMatrix'
 import { ReverseSolve } from './ReverseSolve'
 import { WarningsPanel } from './WarningsPanel'
 import { CustomGpuEditor } from './CustomGpuEditor'
+import { ExportControls } from './ExportControls'
+import { decodeScenarioFromHash } from '../engine/export'
+import { useScenarioStore } from '../store/scenario-store'
 
 export default function App() {
+  useEffect(() => {
+    const partial = decodeScenarioFromHash(window.location.hash)
+    if (partial) {
+      const store = useScenarioStore.getState()
+      const merged = { ...store.scenario, ...partial }
+      store.setScenario(merged)
+    }
+  }, [])
+
   return (
     <div className="app">
       <header className="app-header">
@@ -18,6 +31,7 @@ export default function App() {
         <p className="subtitle">
           Estimate accelerator requirements for training dense language models
         </p>
+        <ExportControls />
       </header>
       <main className="app-main">
         <aside className="input-rail">
