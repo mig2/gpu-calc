@@ -12,10 +12,33 @@ import { CalibrationMode } from './CalibrationMode'
 import { WarningsPanel } from './WarningsPanel'
 import { CustomGpuEditor } from './CustomGpuEditor'
 import { ExportControls } from './ExportControls'
+import { ModelFamilyTabs } from './ModelFamilyTabs'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 
+const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
+  llm: {
+    title: 'LLM Training GPU Calculator',
+    subtitle: 'Estimate accelerator requirements for training dense language models',
+  },
+  time_series_foundation: {
+    title: 'Time-Series Foundation Model Calculator',
+    subtitle: 'Estimate accelerator requirements for training time-series foundation models',
+  },
+  tabular_foundation: {
+    title: 'Tabular Foundation Model Calculator',
+    subtitle: 'Estimate accelerator requirements for training tabular foundation models',
+  },
+  classical_tabular: {
+    title: 'Classical Tabular Calculator',
+    subtitle: 'Estimate compute requirements for classical tabular models',
+  },
+}
+
 export default function App() {
+  const modelFamily = useScenarioStore((s) => s.modelFamily)
+  const { title, subtitle } = FAMILY_TITLES[modelFamily] ?? FAMILY_TITLES.llm
+
   useEffect(() => {
     const partial = decodeScenarioFromHash(window.location.hash)
     if (partial) {
@@ -28,9 +51,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>LLM Training GPU Calculator</h1>
+        <h1>{title}</h1>
         <p className="subtitle">
-          Estimate accelerator requirements for training dense language models
+          {subtitle}
         </p>
         <div className="header-actions">
           <ExportControls />
@@ -41,6 +64,7 @@ export default function App() {
       </header>
       <main className="app-main">
         <aside className="input-rail">
+          <ModelFamilyTabs />
           <ScenarioForm />
           <GpuSelector />
           <AdvancedAssumptions />

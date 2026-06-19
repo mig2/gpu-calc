@@ -731,6 +731,50 @@ input:focus, select:focus {
   display: block;
 }
 
+/* Model Family Tabs */
+.family-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.family-tab {
+  flex: 1;
+  padding: 0.5rem 0.5rem;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  position: relative;
+}
+
+.family-tab:last-child { border-right: none; }
+.family-tab:hover:not(.disabled) { background: var(--surface-hover); color: var(--text); }
+.family-tab.active { background: var(--accent); color: white; }
+.family-tab.disabled { opacity: 0.5; cursor: not-allowed; }
+.family-tab .coming-soon {
+  display: block;
+  font-size: 0.55rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+
+.coming-soon-msg {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 1rem 0;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
