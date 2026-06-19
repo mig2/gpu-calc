@@ -4,6 +4,7 @@ import { AdvancedAssumptions } from './AdvancedAssumptions'
 import { ResultCards } from './ResultCards'
 import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
+import { SensitivityMatrix } from './SensitivityMatrix'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <AssumptionChips />
           <ResultCards />
           <GpuComparisonTable />
+          <SensitivityMatrix />
         </section>
       </main>
     </div>

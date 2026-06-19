@@ -364,6 +364,59 @@ input:focus, select:focus {
   padding: 1rem;
 }
 
+/* Sensitivity */
+.sensitivity-section {
+  margin-top: 1.5rem;
+}
+
+.sensitivity-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.sensitivity-subtitle {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+
+.sensitivity-table-wrapper {
+  overflow-x: auto;
+}
+
+.sensitivity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.sensitivity-table th {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.sensitivity-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+}
+
+.sensitivity-table .mfu-label {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.sensitivity-table .heat-cell {
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
