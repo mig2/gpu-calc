@@ -1,4 +1,5 @@
 import { useScenarioStore } from '../store/scenario-store'
+import { getGpuById } from '../engine/gpu-data'
 
 function formatNumber(n: number): string {
   if (n >= 1e15) return `${(n / 1e15).toFixed(2)} PFLOP/s`
@@ -28,7 +29,7 @@ export function ResultCards() {
       {results.map((result) => (
         <div key={result.gpuId} className="result-card">
           <div className="result-card-header">
-            <h3>{result.gpuId}</h3>
+            <h3>{getGpuById(result.gpuId)?.label ?? result.gpuId}</h3>
           </div>
           <div className="result-gpu-count">
             <span className="big-number">{result.requiredGpus.toLocaleString()}</span>

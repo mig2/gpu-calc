@@ -3,6 +3,7 @@ import { GpuSelector } from './GpuSelector'
 import { AdvancedAssumptions } from './AdvancedAssumptions'
 import { ResultCards } from './ResultCards'
 import { AssumptionChips } from './AssumptionChips'
+import { GpuComparisonTable } from './GpuComparisonTable'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <section className="results-area">
           <AssumptionChips />
           <ResultCards />
+          <GpuComparisonTable />
         </section>
       </main>
     </div>
