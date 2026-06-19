@@ -16,6 +16,7 @@ import { ModelFamilyTabs } from './ModelFamilyTabs'
 import { TimeSeriesBreakdown } from './TimeSeriesBreakdown'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
+import type { ModelFamily } from '../engine/types'
 
 const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
   llm: {
@@ -41,10 +42,13 @@ export default function App() {
   const { title, subtitle } = FAMILY_TITLES[modelFamily] ?? FAMILY_TITLES.llm
 
   useEffect(() => {
-    const partial = decodeScenarioFromHash(window.location.hash)
-    if (partial) {
+    const decoded = decodeScenarioFromHash(window.location.hash)
+    if (decoded) {
       const store = useScenarioStore.getState()
-      const merged = { ...store.scenario, ...partial }
+      const merged = { ...store.scenario, ...decoded.scenario }
+      if (decoded.modelFamily) {
+        store.setModelFamily(decoded.modelFamily as ModelFamily)
+      }
       store.setScenario(merged)
     }
   }, [])
