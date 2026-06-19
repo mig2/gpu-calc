@@ -467,6 +467,18 @@ input:focus, select:focus {
   line-height: 1.6;
 }
 
+/* Warnings Panel */
+.warnings-panel {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.warnings-panel h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;

@@ -61,13 +61,6 @@ export function ResultCards() {
               <dd>{result.memoryLowerBoundGpus}</dd>
             </div>
           </dl>
-          {result.warnings.length > 0 && (
-            <div className="result-warnings">
-              {result.warnings.map((w, i) => (
-                <p key={i} className="warning">{w}</p>
-              ))}
-            </div>
-          )}
         </div>
       ))}
     </div>

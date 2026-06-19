@@ -7,6 +7,7 @@ import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
 import { ReverseSolve } from './ReverseSolve'
+import { WarningsPanel } from './WarningsPanel'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
           <GpuComparisonTable />
           <SensitivityMatrix />
           <ReverseSolve />
+          <WarningsPanel />
         </section>
       </main>
     </div>
