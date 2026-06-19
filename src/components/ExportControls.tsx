@@ -4,6 +4,7 @@ import { exportToJson, exportToCsv, exportToMarkdown, encodeScenarioToHash } fro
 export function ExportControls() {
   const scenario = useScenarioStore((s) => s.scenario)
   const results = useScenarioStore((s) => s.results)
+  const modelFamily = useScenarioStore((s) => s.modelFamily)
 
   function copyToClipboard(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -22,7 +23,7 @@ export function ExportControls() {
   }
 
   function shareUrl() {
-    const hash = encodeScenarioToHash(scenario)
+    const hash = encodeScenarioToHash(scenario, modelFamily)
     const url = window.location.origin + window.location.pathname + hash
     navigator.clipboard.writeText(url).then(() => {
       alert('Shareable URL copied to clipboard')
@@ -34,7 +35,7 @@ export function ExportControls() {
       <button onClick={() => copyToClipboard(exportToMarkdown(scenario, results), 'Markdown')}>
         Copy Markdown
       </button>
-      <button onClick={() => downloadFile(exportToJson(scenario, results), 'gpu-calc.json', 'application/json')}>
+      <button onClick={() => downloadFile(exportToJson(scenario, results, modelFamily), 'gpu-calc.json', 'application/json')}>
         Export JSON
       </button>
       <button onClick={() => downloadFile(exportToCsv(results), 'gpu-calc.csv', 'text/csv')}>

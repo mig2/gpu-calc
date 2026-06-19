@@ -1,8 +1,12 @@
 import type { TrainingScenario, EstimateResult } from './types';
 import { getGpuById } from './gpu-data';
 
-export function exportToJson(scenario: TrainingScenario, results: EstimateResult[]): string {
-  return JSON.stringify({ scenario, results }, null, 2);
+export function exportToJson(
+  scenario: TrainingScenario,
+  results: EstimateResult[],
+  modelFamily: string = 'llm',
+): string {
+  return JSON.stringify({ schema_version: '2.0', model_family: modelFamily, scenario, results }, null, 2);
 }
 
 export function exportToCsv(results: EstimateResult[]): string {
@@ -53,8 +57,9 @@ function formatParams(n: number): string {
   return n.toLocaleString();
 }
 
-export function encodeScenarioToHash(scenario: TrainingScenario): string {
+export function encodeScenarioToHash(scenario: TrainingScenario, modelFamily: string = 'llm'): string {
   const params = new URLSearchParams();
+  params.set('family', modelFamily);
   const paramB = scenario.modelParameters / 1e9;
   params.set('model', `${paramB}B`);
   params.set('days', String(scenario.trainingWindowSeconds / 86_400));
@@ -74,11 +79,12 @@ export function encodeScenarioToHash(scenario: TrainingScenario): string {
   return '#' + params.toString();
 }
 
-export function decodeScenarioFromHash(hash: string): Partial<TrainingScenario> | null {
+export function decodeScenarioFromHash(hash: string): { scenario: Partial<TrainingScenario>; modelFamily?: string } | null {
   if (!hash || hash === '#') return null;
   try {
     const params = new URLSearchParams(hash.replace(/^#/, ''));
     const result: Partial<TrainingScenario> = {};
+    const modelFamily = params.get('family') ?? 'llm';
 
     const model = params.get('model');
     if (model) {
@@ -123,7 +129,7 @@ export function decodeScenarioFromHash(hash: string): Partial<TrainingScenario> 
       if (Object.keys(mfuByGpuId).length > 0) result.mfuByGpuId = mfuByGpuId;
     }
 
-    return result;
+    return { scenario: result, modelFamily };
   } catch {
     return null;
   }

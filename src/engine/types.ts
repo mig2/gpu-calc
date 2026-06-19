@@ -44,3 +44,69 @@ export type EstimateResult = {
   warnings: string[];
   trace: string[];
 };
+
+// === Model Family Extension Types ===
+
+export type ModelFamily = 'llm' | 'time_series_foundation' | 'tabular_foundation' | 'classical_tabular';
+
+export type ConfidenceLevel = 'high' | 'medium' | 'medium-low' | 'low';
+
+export type TimeSeriesTokenizationMode = 'channel_compressed' | 'channel_expanded' | 'custom';
+
+export type TimeSeriesArchitectureType =
+  | 'decoder_transformer'
+  | 'encoder_transformer'
+  | 'encoder_decoder'
+  | 'patch_transformer'
+  | 'custom';
+
+export type BaseHardwareConfig = {
+  trainingWindowSeconds: number;
+  precision: Precision;
+  selectedGpuIds: string[];
+  mfuByGpuId: Record<string, number>;
+  availability: number;
+  overheadFactor: number;
+};
+
+export type LlmConfig = {
+  modelFamily: 'llm';
+  modelParameters: number;
+  tokensPerParameter: number;
+  trainingTokensOverride?: number;
+  architectureFactor: number;
+  trainingMode: TrainingMode;
+  memoryBytesPerParameter: number;
+};
+
+export type TimeSeriesConfig = {
+  modelFamily: 'time_series_foundation';
+  modelParameters: number;
+  numberOfSeries: number;
+  averageTimestepsPerSeries: number;
+  variablesPerSeries: number;
+  lookbackWindow: number;
+  forecastHorizon: number;
+  stride: number;
+  patchSize: number;
+  tokenizationMode: TimeSeriesTokenizationMode;
+  customTokensPerWindow?: number;
+  epochs: number;
+  architectureType: TimeSeriesArchitectureType;
+  architectureFactor: number;
+  memoryBytesPerParameter: number;
+};
+
+export type Scenario =
+  | (BaseHardwareConfig & LlmConfig)
+  | (BaseHardwareConfig & TimeSeriesConfig);
+
+export type AdapterResult = {
+  effectiveTokens: number;
+  baseFlops: number;
+  totalFlops: number;
+  trace: string[];
+  warnings: string[];
+  confidence: ConfidenceLevel;
+  dataBreakdown?: Record<string, string | number>;
+};

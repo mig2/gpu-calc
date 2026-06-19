@@ -1,6 +1,8 @@
 import { useScenarioStore } from '../store/scenario-store'
 import { getGpuById } from '../engine/gpu-data'
 import { Tooltip } from './Tooltip'
+import { ConfidenceBadge } from './ConfidenceBadge'
+import type { ConfidenceLevel } from '../engine/types'
 
 function formatNumber(n: number): string {
   if (n >= 1e15) return `${(n / 1e15).toFixed(2)} PFLOP/s`
@@ -18,8 +20,20 @@ function formatFlops(n: number): string {
   return n.toExponential(2)
 }
 
+function getConfidence(modelFamily: string, trainingMode: string): ConfidenceLevel {
+  if (modelFamily === 'time_series_foundation') return 'medium'
+  switch (trainingMode) {
+    case 'FULL_PRETRAINING': return 'high'
+    case 'CONTINUED_PRETRAINING': return 'medium'
+    default: return 'medium-low'
+  }
+}
+
 export function ResultCards() {
   const results = useScenarioStore((s) => s.results)
+  const modelFamily = useScenarioStore((s) => s.modelFamily)
+  const scenario = useScenarioStore((s) => s.scenario)
+  const confidence = getConfidence(modelFamily, scenario.trainingMode)
 
   if (results.length === 0) {
     return <div className="result-cards"><p>Select at least one GPU to see results.</p></div>
@@ -33,6 +47,7 @@ export function ResultCards() {
         <div key={result.gpuId} className="result-card">
           <div className="result-card-header">
             <h3>{getGpuById(result.gpuId)?.label ?? result.gpuId}</h3>
+            <ConfidenceBadge level={confidence} />
           </div>
           <div className="result-gpu-count">
             <span className="big-number">{effectiveGpus.toLocaleString()}</span>
