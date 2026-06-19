@@ -1,5 +1,6 @@
 import { useScenarioStore } from '../store/scenario-store'
 import { getGpuById } from '../engine/gpu-data'
+import { Tooltip } from './Tooltip'
 
 function formatNumber(n: number): string {
   if (n >= 1e15) return `${(n / 1e15).toFixed(2)} PFLOP/s`
@@ -35,7 +36,11 @@ export function ResultCards() {
           </div>
           <div className="result-gpu-count">
             <span className="big-number">{effectiveGpus.toLocaleString()}</span>
-            <span className="label">GPUs required</span>
+            <span className="label">
+              <Tooltip text="Minimum GPUs needed to complete training in the specified window at the given MFU and availability.">
+                GPUs required
+              </Tooltip>
+            </span>
           </div>
           {result.memoryLowerBoundGpus > result.requiredGpus ? (
             <div className="binding-indicator memory-bound">
@@ -58,7 +63,11 @@ export function ResultCards() {
           )}
           <dl className="result-details">
             <div>
-              <dt>H100 equivalents</dt>
+              <dt>
+                <Tooltip text="How many H100 GPUs at default MFU would provide equivalent throughput.">
+                  H100 equivalents
+                </Tooltip>
+              </dt>
               <dd>{result.h100Equivalents.toFixed(1)}</dd>
             </div>
             <div>
@@ -74,11 +83,19 @@ export function ResultCards() {
               <dd>{formatFlops(result.totalFlops)}</dd>
             </div>
             <div>
-              <dt>Sustained throughput/GPU</dt>
+              <dt>
+                <Tooltip text="Actual useful compute per GPU: peak FLOP/s x MFU x availability.">
+                  Sustained throughput/GPU
+                </Tooltip>
+              </dt>
               <dd>{formatNumber(result.sustainedFlopsPerGpu)}</dd>
             </div>
             <div>
-              <dt>Memory lower-bound GPUs</dt>
+              <dt>
+                <Tooltip text="Minimum GPUs needed just to hold model state in memory, before considering compute.">
+                  Memory lower-bound GPUs
+                </Tooltip>
+              </dt>
               <dd>{result.memoryLowerBoundGpus}</dd>
             </div>
           </dl>

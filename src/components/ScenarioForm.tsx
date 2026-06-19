@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useScenarioStore } from '../store/scenario-store'
 import type { TrainingMode } from '../engine/types'
+import { Tooltip } from './Tooltip'
 
 const MODEL_PRESETS = [
   { label: '7B', value: 7e9 },
@@ -122,7 +123,11 @@ export function ScenarioForm() {
       <h2>Scenario</h2>
 
       <fieldset>
-        <legend>Model Size</legend>
+        <legend>
+          <Tooltip text="Total number of model parameters. The calculator uses this with tokens-per-parameter to determine training compute.">
+            Model Size
+          </Tooltip>
+        </legend>
         <div className="input-with-presets">
           <input
             type="text"
@@ -150,7 +155,11 @@ export function ScenarioForm() {
       </fieldset>
 
       <fieldset>
-        <legend>Training Window</legend>
+        <legend>
+          <Tooltip text="Wall-clock time available for training. Shorter windows require more GPUs.">
+            Training Window
+          </Tooltip>
+        </legend>
         <div className="input-with-presets">
           <input
             type="text"
@@ -178,7 +187,11 @@ export function ScenarioForm() {
       </fieldset>
 
       <fieldset>
-        <legend>Tokens per Parameter</legend>
+        <legend>
+          <Tooltip text="How many tokens to train on per parameter. Chinchilla-optimal is ~20. Modern recipes often use 50-100+ for inference efficiency.">
+            Tokens per Parameter
+          </Tooltip>
+        </legend>
         <div className="input-with-presets">
           <input
             type="number"
@@ -209,7 +222,11 @@ export function ScenarioForm() {
       </fieldset>
 
       <fieldset>
-        <legend>Training Mode</legend>
+        <legend>
+          <Tooltip text="Type of training run. The 6ND formula is calibrated for full pretraining; other modes may need less compute.">
+            Training Mode
+          </Tooltip>
+        </legend>
         <select
           value={scenario.trainingMode}
           onChange={(e) => setTrainingMode(e.target.value as TrainingMode)}
@@ -222,7 +239,11 @@ export function ScenarioForm() {
       </fieldset>
 
       <fieldset>
-        <legend>Precision</legend>
+        <legend>
+          <Tooltip text="Numerical precision for training. BF16 is standard. FP8 is experimental and may not deliver theoretical peak.">
+            Precision
+          </Tooltip>
+        </legend>
         <select
           value={scenario.precision}
           onChange={(e) => setPrecision(e.target.value as 'BF16_DENSE' | 'FP8_DENSE')}

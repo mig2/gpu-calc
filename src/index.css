@@ -672,6 +672,66 @@ input:focus, select:focus {
   background: var(--accent-hover);
 }
 
+/* Tooltips */
+.tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+  font-style: italic;
+  font-family: serif;
+  cursor: help;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.tooltip-trigger:hover,
+.tooltip-trigger:focus {
+  background: var(--accent);
+  color: white;
+  outline: none;
+}
+
+.tooltip-content {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text);
+  line-height: 1.5;
+  width: max-content;
+  max-width: 280px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  font-style: normal;
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.tooltip-trigger:hover + .tooltip-content,
+.tooltip-trigger:focus + .tooltip-content {
+  display: block;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;

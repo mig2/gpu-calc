@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useScenarioStore } from '../store/scenario-store'
 import { GPU_SKUS } from '../engine/gpu-data'
+import { Tooltip } from './Tooltip'
 
 export function AdvancedAssumptions() {
   const [open, setOpen] = useState(false)
@@ -29,7 +30,11 @@ export function AdvancedAssumptions() {
             return (
               <div key={gpuId} className="slider-group">
                 <label>
-                  <span>MFU — {gpu?.label ?? gpuId}</span>
+                  <span>
+                    <Tooltip text="Model FLOP Utilization — fraction of theoretical GPU peak actually achieved. Depends on architecture, parallelism, and software stack.">
+                      MFU — {gpu?.label ?? gpuId}
+                    </Tooltip>
+                  </span>
                   <span>{(mfu * 100).toFixed(0)}%</span>
                 </label>
                 <input
@@ -52,7 +57,11 @@ export function AdvancedAssumptions() {
 
           <div className="slider-group">
             <label>
-              <span>Availability</span>
+              <span>
+                <Tooltip text="Fraction of wall-clock time the cluster is actually training (vs failures, restarts, maintenance, queueing).">
+                  Availability
+                </Tooltip>
+              </span>
               <span>{(scenario.availability * 100).toFixed(0)}%</span>
             </label>
             <input
@@ -68,7 +77,11 @@ export function AdvancedAssumptions() {
 
           <div className="slider-group">
             <label>
-              <span>Overhead Factor</span>
+              <span>
+                <Tooltip text="Extra compute for checkpointing, evaluation, data stalls, and restarts. 1.10 means 10% overhead.">
+                  Overhead Factor
+                </Tooltip>
+              </span>
               <span>{scenario.overheadFactor.toFixed(2)}x</span>
             </label>
             <input
@@ -83,7 +96,11 @@ export function AdvancedAssumptions() {
           </div>
 
           <fieldset>
-            <legend>Memory Bytes / Parameter</legend>
+            <legend>
+              <Tooltip text="GPU memory per parameter for optimizer state (Adam ~16 bytes). Does not include activations.">
+                Memory Bytes / Parameter
+              </Tooltip>
+            </legend>
             <input
               type="number"
               min={1}
