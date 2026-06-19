@@ -99,9 +99,34 @@ export type TimeSeriesConfig = {
   memoryBytesPerParameter: number;
 };
 
+export type TabularTokenizationMode = 'row' | 'cell' | 'axial' | 'custom';
+
+export type TabularArchitectureType =
+  | 'row_transformer'
+  | 'cell_transformer'
+  | 'axial_transformer'
+  | 'tabpfn_icl'
+  | 'custom';
+
+export type TabularFoundationConfig = {
+  modelFamily: 'tabular_foundation';
+  modelParameters: number;
+  numberOfPretrainingTasks: number;
+  rowsPerTask: number;
+  columnsPerTask: number;
+  tokenizationMode: TabularTokenizationMode;
+  customTokensPerTask?: number;
+  epochs: number;
+  architectureType: TabularArchitectureType;
+  architectureFactor: number;
+  testTimeComputeMultiplier: number;
+  memoryBytesPerParameter: number;
+};
+
 export type Scenario =
   | (BaseHardwareConfig & LlmConfig)
-  | (BaseHardwareConfig & TimeSeriesConfig);
+  | (BaseHardwareConfig & TimeSeriesConfig)
+  | (BaseHardwareConfig & TabularFoundationConfig);
 
 export type AdapterResult = {
   effectiveTokens: number;
