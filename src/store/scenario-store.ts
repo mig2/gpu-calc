@@ -1,6 +1,8 @@
 import { create } from 'zustand';
-import type { TrainingScenario, EstimateResult, Precision, TrainingMode, GpuSku } from '../engine/types';
+import type { TrainingScenario, EstimateResult, Precision, TrainingMode, GpuSku, ModelFamily, TimeSeriesConfig, BaseHardwareConfig } from '../engine/types';
 import { estimateTrainingRun } from '../engine/calculator';
+import { computeTimeSeriesFlops } from '../engine/adapters/time-series-adapter';
+import { estimateHardware } from '../engine/hardware-estimator';
 import { GPU_SKUS, getGpuById, getH100Reference, setExtraGpus } from '../engine/gpu-data';
 
 function loadCustomGpus(): GpuSku[] {
@@ -20,10 +22,43 @@ export function getAllGpus(customGpus: GpuSku[]): GpuSku[] {
   return [...GPU_SKUS, ...customGpus];
 }
 
+const defaultTsConfig = {
+  modelParameters: 1e9,
+  numberOfSeries: 10e6,
+  averageTimestepsPerSeries: 1000,
+  variablesPerSeries: 1,
+  lookbackWindow: 256,
+  forecastHorizon: 64,
+  stride: 64,
+  patchSize: 16,
+  tokenizationMode: 'channel_compressed' as const,
+  epochs: 1,
+  architectureType: 'decoder_transformer' as const,
+  architectureFactor: 6,
+  memoryBytesPerParameter: 16,
+};
+
 type ScenarioStore = {
   scenario: TrainingScenario;
   results: EstimateResult[];
   customGpus: GpuSku[];
+  modelFamily: ModelFamily;
+  tsConfig: {
+    modelParameters: number;
+    numberOfSeries: number;
+    averageTimestepsPerSeries: number;
+    variablesPerSeries: number;
+    lookbackWindow: number;
+    forecastHorizon: number;
+    stride: number;
+    patchSize: number;
+    tokenizationMode: 'channel_compressed' | 'channel_expanded' | 'custom';
+    customTokensPerWindow?: number;
+    epochs: number;
+    architectureType: 'decoder_transformer' | 'encoder_transformer' | 'encoder_decoder' | 'patch_transformer' | 'custom';
+    architectureFactor: number;
+    memoryBytesPerParameter: number;
+  };
 
   setModelParameters: (params: number) => void;
   setTokensPerParameter: (tpp: number) => void;
@@ -38,6 +73,8 @@ type ScenarioStore = {
   addCustomGpu: (gpu: GpuSku) => void;
   removeCustomGpu: (id: string) => void;
   setScenario: (scenario: TrainingScenario) => void;
+  setModelFamily: (family: ModelFamily) => void;
+  setTsField: <K extends keyof ScenarioStore['tsConfig']>(key: K, value: ScenarioStore['tsConfig'][K]) => void;
 };
 
 const defaultScenario: TrainingScenario = {
@@ -53,7 +90,78 @@ const defaultScenario: TrainingScenario = {
   memoryBytesPerParameter: 16,
 };
 
-function computeResults(scenario: TrainingScenario, customGpus: GpuSku[]): EstimateResult[] {
+function computeResults(
+  scenario: TrainingScenario,
+  customGpus: GpuSku[],
+  modelFamily: ModelFamily = 'llm',
+  tsConfig: ScenarioStore['tsConfig'] = defaultTsConfig,
+): EstimateResult[] {
+  if (modelFamily === 'time_series_foundation') {
+    const h100 = getH100Reference();
+    const allGpus = getAllGpus(customGpus);
+
+    const tsScenario = {
+      modelFamily: 'time_series_foundation' as const,
+      ...tsConfig,
+      trainingWindowSeconds: scenario.trainingWindowSeconds,
+      precision: scenario.precision,
+      selectedGpuIds: scenario.selectedGpuIds,
+      mfuByGpuId: scenario.mfuByGpuId,
+      availability: scenario.availability,
+      overheadFactor: scenario.overheadFactor,
+    };
+
+    const adapterResult = computeTimeSeriesFlops(tsScenario);
+
+    return scenario.selectedGpuIds
+      .map((id) => allGpus.find((g) => g.id === id) ?? getGpuById(id))
+      .filter((gpu): gpu is NonNullable<typeof gpu> => gpu != null)
+      .map((gpu) => {
+        const hwResult = estimateHardware(
+          {
+            totalFlops: adapterResult.totalFlops,
+            modelParameters: tsConfig.modelParameters,
+            memoryBytesPerParameter: tsConfig.memoryBytesPerParameter,
+            hardware: {
+              trainingWindowSeconds: scenario.trainingWindowSeconds,
+              precision: scenario.precision,
+              selectedGpuIds: scenario.selectedGpuIds,
+              mfuByGpuId: scenario.mfuByGpuId,
+              availability: scenario.availability,
+              overheadFactor: scenario.overheadFactor,
+            },
+          },
+          gpu,
+          h100,
+        );
+
+        const warnings = [...adapterResult.warnings];
+        if (hwResult.requiredGpus > 1024) {
+          warnings.push(
+            `Distributed-systems warning: ${hwResult.requiredGpus.toLocaleString()} GPUs implies challenges with networking, checkpointing, stragglers, and cluster fragmentation.`,
+          );
+        }
+        if (hwResult.memoryLowerBoundGpus > hwResult.requiredGpus) {
+          warnings.push(
+            `Memory bound exceeds compute bound: at least ${hwResult.memoryLowerBoundGpus} GPUs needed for model state memory alone (vs ${hwResult.requiredGpus} for compute).`,
+          );
+        }
+
+        return {
+          gpuId: gpu.id,
+          tokens: adapterResult.effectiveTokens,
+          baseFlops: adapterResult.baseFlops,
+          totalFlops: adapterResult.totalFlops,
+          sustainedFlopsPerGpu: hwResult.sustainedFlopsPerGpu,
+          requiredGpus: hwResult.requiredGpus,
+          h100Equivalents: hwResult.h100Equivalents,
+          memoryLowerBoundGpus: hwResult.memoryLowerBoundGpus,
+          warnings,
+          trace: [...adapterResult.trace, ...hwResult.hardwareTrace],
+        };
+      });
+  }
+
   const h100 = getH100Reference();
   const allGpus = getAllGpus(customGpus);
   return scenario.selectedGpuIds
@@ -69,41 +177,43 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
   scenario: defaultScenario,
   results: computeResults(defaultScenario, initialCustomGpus),
   customGpus: initialCustomGpus,
+  modelFamily: 'llm',
+  tsConfig: { ...defaultTsConfig },
 
   setModelParameters: (params) =>
     set((state) => {
       const scenario = { ...state.scenario, modelParameters: params };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setTokensPerParameter: (tpp) =>
     set((state) => {
       const scenario = { ...state.scenario, tokensPerParameter: tpp };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setTrainingWindowSeconds: (seconds) =>
     set((state) => {
       const scenario = { ...state.scenario, trainingWindowSeconds: seconds };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setPrecision: (precision) =>
     set((state) => {
       const scenario = { ...state.scenario, precision };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setTrainingMode: (mode) =>
     set((state) => {
       const scenario = { ...state.scenario, trainingMode: mode };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setSelectedGpuIds: (ids) =>
     set((state) => {
       const scenario = { ...state.scenario, selectedGpuIds: ids };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setMfuForGpu: (gpuId, mfu) =>
@@ -112,25 +222,25 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         ...state.scenario,
         mfuByGpuId: { ...state.scenario.mfuByGpuId, [gpuId]: mfu },
       };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setAvailability: (availability) =>
     set((state) => {
       const scenario = { ...state.scenario, availability };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setOverheadFactor: (overhead) =>
     set((state) => {
       const scenario = { ...state.scenario, overheadFactor: overhead };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setMemoryBytesPerParameter: (bytes) =>
     set((state) => {
       const scenario = { ...state.scenario, memoryBytesPerParameter: bytes };
-      return { scenario, results: computeResults(scenario, state.customGpus) };
+      return { scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   addCustomGpu: (gpu) =>
@@ -142,7 +252,7 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         ...state.scenario,
         mfuByGpuId: { ...state.scenario.mfuByGpuId, [gpu.id]: gpu.defaultMfu },
       };
-      return { customGpus, scenario, results: computeResults(scenario, customGpus) };
+      return { customGpus, scenario, results: computeResults(scenario, customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   removeCustomGpu: (id) =>
@@ -155,9 +265,21 @@ export const useScenarioStore = create<ScenarioStore>((set, get) => ({
         ...state.scenario,
         selectedGpuIds: selectedGpuIds.length > 0 ? selectedGpuIds : ['h100-sxm'],
       };
-      return { customGpus, scenario, results: computeResults(scenario, customGpus) };
+      return { customGpus, scenario, results: computeResults(scenario, customGpus, state.modelFamily, state.tsConfig) };
     }),
 
   setScenario: (scenario) =>
-    set((state) => ({ scenario, results: computeResults(scenario, state.customGpus) })),
+    set((state) => ({ scenario, results: computeResults(scenario, state.customGpus, state.modelFamily, state.tsConfig) })),
+
+  setModelFamily: (family) =>
+    set((state) => ({
+      modelFamily: family,
+      results: computeResults(state.scenario, state.customGpus, family, state.tsConfig),
+    })),
+
+  setTsField: (key, value) =>
+    set((state) => {
+      const tsConfig = { ...state.tsConfig, [key]: value };
+      return { tsConfig, results: computeResults(state.scenario, state.customGpus, state.modelFamily, tsConfig) };
+    }),
 }));
