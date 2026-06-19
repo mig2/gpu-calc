@@ -123,10 +123,27 @@ export type TabularFoundationConfig = {
   memoryBytesPerParameter: number;
 };
 
+export type GbdtAlgorithm = 'xgboost' | 'lightgbm' | 'catboost' | 'random_forest' | 'custom';
+
+export type ClassicalTabularConfig = {
+  modelFamily: 'classical_tabular';
+  algorithm: GbdtAlgorithm;
+  rows: number;
+  columns: number;
+  boostingRounds: number;
+  maxDepth: number;
+  bins: number;
+  cvFolds: number;
+  hyperparameterTrials: number;
+  cpuOrGpu: 'cpu' | 'gpu';
+  throughputCoefficient: number;  // work_units / second
+};
+
 export type Scenario =
   | (BaseHardwareConfig & LlmConfig)
   | (BaseHardwareConfig & TimeSeriesConfig)
-  | (BaseHardwareConfig & TabularFoundationConfig);
+  | (BaseHardwareConfig & TabularFoundationConfig)
+  | (BaseHardwareConfig & ClassicalTabularConfig);
 
 export type AdapterResult = {
   effectiveTokens: number;

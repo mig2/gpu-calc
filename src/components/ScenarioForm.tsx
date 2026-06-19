@@ -1,6 +1,8 @@
 import { useScenarioStore } from '../store/scenario-store'
 import { LlmForm } from './LlmForm'
 import { TimeSeriesForm } from './TimeSeriesForm'
+import { TabularForm } from './TabularForm'
+import { ClassicalTabularForm } from './ClassicalTabularForm'
 
 export function ScenarioForm() {
   const modelFamily = useScenarioStore((s) => s.modelFamily)
@@ -9,9 +11,8 @@ export function ScenarioForm() {
       <h2>Scenario</h2>
       {modelFamily === 'llm' && <LlmForm />}
       {modelFamily === 'time_series_foundation' && <TimeSeriesForm />}
-      {(modelFamily === 'tabular_foundation' || modelFamily === 'classical_tabular') && (
-        <p className="coming-soon-msg">This model family is coming soon.</p>
-      )}
+      {modelFamily === 'tabular_foundation' && <TabularForm />}
+      {modelFamily === 'classical_tabular' && <ClassicalTabularForm />}
     </div>
   )
 }
