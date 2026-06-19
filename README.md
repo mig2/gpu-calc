@@ -1,9 +1,10 @@
-# LLM Training GPU Calculator
+# GPU Training Calculator
 
-Estimate accelerator requirements for training dense decoder-only transformer language models.
+Estimate accelerator requirements for training across four model families: **LLMs**, **time-series foundation models**, **tabular foundation models**, and **classical tabular (GBDT)**.
 
 ## Features
 
+- **Model family tabs** -- switch between LLM, time-series, tabular foundation, and classical tabular modes
 - **Quick Estimate** -- enter model size + training window, get GPU count instantly
 - **Advanced Estimate** -- explicit control over MFU, availability, overhead, precision, and tokens-per-parameter
 - **GPU Comparison** -- multi-select H100/H200/B200/GB200 with side-by-side table and bar chart
@@ -11,6 +12,10 @@ Estimate accelerator requirements for training dense decoder-only transformer la
 - **Reverse Solve** -- find training time from a GPU budget, or max model size from a GPU budget
 - **Calibration** -- back-solve achieved MFU from a known training run
 - **Memory Feasibility** -- detect when model state memory exceeds compute requirements
+- **Time-series mode** -- patch-based tokenization (channel-compressed / channel-expanded), windowed series geometry
+- **Tabular foundation mode** -- row / cell / axial tokenization, dense attention warnings, test-time compute multiplier
+- **Classical tabular mode** -- work-unit model for LightGBM, XGBoost, CatBoost, Random Forest with empirical throughput calibration
+- **Confidence labels** -- high / medium / medium-low / low estimates based on model family and settings
 - **Custom GPUs** -- define custom SKUs with your own peak FLOP/s, memory, and MFU
 - **Export & Share** -- JSON, CSV, Markdown export; URL hash encoding for shareable links
 - **Formula Trace** -- every result includes a step-by-step calculation audit trail
@@ -50,20 +55,24 @@ npm run build      # production build to dist/
 ```
 src/
   engine/          Pure functions -- no React, no side effects
-    calculator.ts    Core 6ND FLOP model and GPU count formula
+    calculator.ts    Core 6ND FLOP model and GPU count formula (LLM)
+    adapters/
+      time-series-adapter.ts   Windowed patch tokenization + FLOP estimate
+      tabular-adapter.ts       Row/cell/axial tokenization + FLOP estimate
+      classical-tabular-adapter.ts  Work-unit throughput model (GBDT)
     reverse-solve.ts Solve for time or model size from GPU budget
     calibration.ts   Back-solve MFU from known run
     gpu-data.ts      GPU SKU table (H100/H200/B200/GB200)
     export.ts        JSON/CSV/Markdown export + URL hash encoding
-    types.ts         All domain types
+    types.ts         All domain types (ModelFamily, Scenario union, adapters)
   store/
     scenario-store.ts  Zustand store -- single source of truth
   components/        React components -- read from store, call engine
-    App.tsx            Layout shell
+    App.tsx            Layout shell + model family tabs
     ScenarioForm.tsx   Model size, window, TPP, mode, precision
     GpuSelector.tsx    Multi-select GPU checkboxes
     AdvancedAssumptions.tsx  MFU, availability, overhead sliders
-    ResultCards.tsx     Top-line GPU count cards
+    ResultCards.tsx     Top-line GPU count cards + confidence badge
     GpuComparisonTable.tsx   Side-by-side comparison
     SensitivityMatrix.tsx    MFU x window heatmap
     ReverseSolve.tsx         Reverse-solve UI
@@ -71,7 +80,7 @@ src/
     ...
 ```
 
-The engine layer is pure math with no UI dependencies. The store holds scenario state and derived results. Components subscribe to the store and render.
+The engine layer is pure math with no UI dependencies. Each model family has a dedicated adapter that computes effective tokens and FLOPs (or work units for classical tabular). The store holds scenario state and derived results. Components subscribe to the store and render.
 
 ## Help & Documentation
 

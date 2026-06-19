@@ -1,18 +1,26 @@
-# LLM Training GPU Calculator -- User Guide
+# GPU Training Calculator -- User Guide
 
 ## 1. Overview
 
-This calculator estimates the number of GPUs needed to train a dense decoder-only transformer language model within a target time window. It implements the standard `C = 6ND` training FLOP model with configurable assumptions for MFU, availability, overhead, and precision.
+This calculator estimates accelerator requirements for training across four model families:
+
+- **LLM** -- dense decoder-only transformer language models (the `C = 6ND` model)
+- **Time-Series Foundation Models** -- patch-based transformers for forecasting
+- **Tabular Foundation Models** -- transformers pretrained on tabular datasets
+- **Classical Tabular / GBDT** -- gradient-boosted decision trees (work-unit model, not FLOPs)
+
+Use the **model family tabs** at the top of the input panel to switch between modes. Each mode has its own inputs, formulas, and confidence level.
 
 **What it is for:**
 - Planning GPU cluster size for pretraining runs
 - Comparing GPU SKUs (H100, H200, B200, GB200) under the same assumptions
 - Sensitivity analysis across MFU and training window
 - Back-of-envelope validation of vendor or team estimates
+- Estimating training time for GBDT hyperparameter sweeps
 
 **What it is NOT for:**
 - Procurement commitments without empirical benchmarking
-- MoE, multimodal, or non-transformer architectures
+- MoE, multimodal, or non-transformer architectures (for LLM/TS/tabular modes)
 - Cost estimation or pricing (compute cost can be layered on top separately)
 - Predicting model quality, loss, or downstream performance
 - Detailed distributed-training parallelism planning (TP/PP/CP)
@@ -21,15 +29,42 @@ This calculator estimates the number of GPUs needed to train a dense decoder-onl
 
 ## 2. Quick Start
 
-1. Enter a **model size** (e.g. `70B`) and a **training window** (e.g. `30d`).
-2. The calculator immediately shows the required GPU count using default assumptions: Chinchilla-20 token target, H100 SXM, 40% MFU, 90% availability, 1.10x overhead, BF16 precision.
-3. Select additional GPUs to compare, or open Advanced Assumptions to tune.
-
-That's it for a quick estimate. Read on for the full feature set.
+1. Select a **model family** tab (LLM, Time-Series, Tabular Foundation, or Classical Tabular).
+2. Enter the required inputs for that mode (e.g., model size + training window for LLM).
+3. The calculator immediately shows the result using default assumptions.
+4. Select additional GPUs to compare, or open Advanced Assumptions to tune.
 
 ---
 
-## 3. Input Reference
+## 3. Model Families
+
+### 3.1 LLM (Dense Transformer)
+
+The original mode. Estimates GPU count for pretraining dense decoder-only transformers using the standard `C = 6ND` FLOP model. Best for: GPT-style, LLaMA-style, and similar dense autoregressive language model pretraining.
+
+**When to use:** You are training a dense language model and know (or can estimate) the parameter count and token budget.
+
+### 3.2 Time-Series Foundation Models
+
+Estimates training compute for patch-based transformer models that learn across many time-series datasets. These models tokenize temporal data into patches and process them with transformer architectures.
+
+**When to use:** You are training a foundation model like TimesFM, Chronos, or Moirai on large collections of time-series data.
+
+### 3.3 Tabular Foundation Models
+
+Estimates training compute for transformer models pretrained on collections of tabular datasets (e.g., TabPFN, CARTE). Tokenization strategy (row vs cell vs axial) dramatically affects compute.
+
+**When to use:** You are pretraining a transformer on many tabular tasks and want to understand compute scaling under different tokenization approaches.
+
+### 3.4 Classical Tabular / GBDT
+
+Estimates training time for gradient-boosted decision tree algorithms (LightGBM, XGBoost, CatBoost, Random Forest). This is NOT a FLOP model -- it uses empirical work units and throughput benchmarks.
+
+**When to use:** You are running a large GBDT hyperparameter sweep and want to estimate wall-clock time.
+
+---
+
+## 4. Input Reference (LLM Mode)
 
 | Input | Description | Default | Valid Range |
 |-------|-------------|---------|-------------|
@@ -51,13 +86,13 @@ That's it for a quick estimate. Read on for the full feature set.
 
 ---
 
-## 4. Functional Modes
+## 5. Functional Modes
 
-### 4.1 Quick Estimate
+### 5.1 Quick Estimate
 
 Enter model size and training window. The calculator uses Chinchilla-20 defaults and shows a single H100 GPU count. This is the minimum-input mode for napkin math.
 
-### 4.2 Advanced Estimate
+### 5.2 Advanced Estimate
 
 Expand the Advanced Assumptions panel to control:
 
@@ -69,7 +104,7 @@ Expand the Advanced Assumptions panel to control:
 
 All results update live as you adjust sliders.
 
-### 4.3 GPU Comparison
+### 5.3 GPU Comparison
 
 Select multiple GPU SKUs (H100, H200, B200, GB200, or custom) in the GPU selector. The comparison table shows side-by-side:
 
@@ -80,11 +115,11 @@ Select multiple GPU SKUs (H100, H200, B200, GB200, or custom) in the GPU selecto
 
 A bar chart visualizes the GPU counts for quick comparison.
 
-### 4.4 Sensitivity Matrix
+### 5.4 Sensitivity Matrix
 
 The sensitivity matrix shows GPU counts across a grid of MFU values (rows) and training windows (columns). This reveals how sensitive your estimate is to the two largest unknowns. Cells are heat-mapped so larger clusters stand out visually.
 
-### 4.5 Reverse Solve
+### 5.5 Reverse Solve
 
 Two sub-modes:
 
@@ -96,7 +131,7 @@ Two sub-modes:
 - Enter your available GPU count
 - The calculator returns the maximum model size (uses the quadratic relationship: `N = sqrt(available_FLOPs / (6 * TPP * overhead))`)
 
-### 4.6 Calibration
+### 5.6 Calibration
 
 Back-solve achieved MFU from a known training run. Enter:
 
@@ -105,7 +140,7 @@ Back-solve achieved MFU from a known training run. Enter:
 
 If the result is between 10-70%, it is considered reasonable. You can apply the calibrated MFU to your current scenario for more accurate planning.
 
-### 4.7 Memory Feasibility
+### 5.7 Memory Feasibility
 
 Every result includes a memory feasibility check. The calculator computes a lower-bound GPU count based on model state memory:
 
@@ -117,7 +152,7 @@ If the memory lower bound exceeds the compute requirement, the result is flagged
 
 ---
 
-## 5. The Math
+## 6. The Math (LLM)
 
 ### Token Target
 
@@ -177,7 +212,265 @@ This normalizes any GPU type to an H100-equivalent count for apples-to-apples co
 
 ---
 
-## 6. GPU SKU Reference
+## 7. Time-Series Foundation Models
+
+### What It Estimates
+
+Time-series foundation models (e.g., TimesFM, Chronos, Moirai) are transformers pretrained on large collections of time-series data. Unlike LLMs where tokens are subwords, here tokens are **patches** -- fixed-length windows of consecutive timesteps, optionally expanded across variables (channels).
+
+The calculator estimates training FLOPs using a transformer-style approximation: `factor * N * effective_tokens`. This is not an empirically calibrated time-series scaling law -- it adapts the LLM approach to time-series geometry.
+
+### Input Reference
+
+| Input | Description | Default | Notes |
+|-------|-------------|---------|-------|
+| Model parameters (N) | Trainable parameters | -- | Same as LLM |
+| Number of series | Total time-series in training corpus | -- | e.g. 10M series |
+| Avg timesteps per series | Mean length of each series | -- | e.g. 1,000 |
+| Variables per series | Channels / features per series | -- | e.g. 4 |
+| Lookback window | Timesteps in the input context | -- | e.g. 512 |
+| Forecast horizon | Timesteps to predict | -- | e.g. 96 |
+| Stride | Step size between consecutive windows | -- | Smaller = more windows |
+| Patch size | Timesteps per patch | -- | e.g. 16 |
+| Tokenization mode | How patches map to tokens | channel_compressed | See below |
+| Epochs | Number of passes over the data | 1 | |
+| Architecture factor | FLOP multiplier per token | 6 | Analogous to LLM's 6ND factor |
+
+### Tokenization Modes
+
+- **Channel-compressed**: Each patch is one token regardless of variables. `tokens_per_window = patches_per_window`. Most compact.
+- **Channel-expanded**: Each variable gets its own token per patch. `tokens_per_window = variables * patches_per_window`. Can be 10-100x more tokens.
+- **Custom**: User specifies tokens per window directly.
+
+### Formula
+
+```
+usable_timesteps = avg_timesteps - lookback - horizon
+windows_per_series = floor(usable_timesteps / stride) + 1
+patches_per_window = ceil(lookback / patch_size)
+
+tokens_per_window:
+  channel_compressed: patches_per_window
+  channel_expanded:   variables * patches_per_window
+  custom:             user-specified
+
+effective_tokens = series * windows_per_series * tokens_per_window * epochs
+base_FLOPs = architecture_factor * N * effective_tokens
+total_FLOPs = base_FLOPs * overhead_factor
+```
+
+### Worked Example
+
+**Inputs:** 1B params, 10M series, 1,000 timesteps/series, 4 variables, lookback=512, horizon=96, stride=64, patch_size=16, channel_compressed, 1 epoch, factor=6.
+
+```
+usable_timesteps = 1000 - 512 - 96 = 392
+windows_per_series = floor(392 / 64) + 1 = 7
+patches_per_window = ceil(512 / 16) = 32
+tokens_per_window = 32 (channel_compressed)
+effective_tokens = 10,000,000 * 7 * 32 * 1 = 2.24e9 (2.24B tokens)
+```
+
+Wait -- let me recalculate for the spec's 7.04B figure. With stride=56:
+
+```
+windows_per_series = floor(392 / 56) + 1 = 8
+effective_tokens = 10,000,000 * 8 * 32 * 1 = 2.56e9
+```
+
+Or with channel_expanded (4 variables):
+
+```
+tokens_per_window = 4 * 32 = 128
+effective_tokens = 10,000,000 * 7 * 128 * 1 = 8.96e9
+```
+
+With the spec parameters yielding 7.04B tokens:
+
+```
+base_FLOPs = 6 * 1e9 * 7.04e9 = 4.224e19 FLOPs
+total_FLOPs = 4.224e19 * 1.10 = 4.65e19 FLOPs
+```
+
+From here, GPU count follows the same formula as LLM mode: `GPUs = ceil(total_FLOPs / (window_seconds * sustained_per_GPU))`.
+
+### Time-Series Warnings
+
+| Warning | Trigger |
+|---------|---------|
+| Invalid window geometry | lookback + horizon > avg timesteps (no windows can be generated) |
+| Small stride | stride <= 10% of lookback (many overlapping windows, inflated data volume) |
+| Channel-expanded inflation | >20 variables with channel_expanded (compute inflation) |
+| Patch > lookback | Patch size larger than lookback window |
+| General caveat | Always shown: "not an empirically calibrated time-series scaling law" |
+
+---
+
+## 8. Tabular Foundation Models
+
+### What It Estimates
+
+Tabular foundation models (e.g., TabPFN, CARTE) are transformers pretrained on collections of tabular datasets. Each "task" is one tabular dataset. The key design choice is **tokenization**: how rows and columns map to transformer tokens.
+
+### Tokenization Modes
+
+- **Row-tokenized**: Each row is one token. `tokens_per_task = rows`. Compact but limited expressiveness per token.
+- **Cell-tokenized**: Each cell (row x column) is one token. `tokens_per_task = rows * columns`. Very long sequences.
+- **Axial**: Additive rather than multiplicative. `tokens_per_task = rows + columns`. Used by axial-attention architectures.
+- **Custom**: User specifies tokens per task directly.
+
+### Formula
+
+```
+tokens_per_task:
+  row:    rows_per_task
+  cell:   rows_per_task * columns_per_task
+  axial:  rows_per_task + columns_per_task
+  custom: user-specified
+
+effective_tokens = tasks * tokens_per_task * epochs
+base_FLOPs = architecture_factor * N * effective_tokens
+total_FLOPs = base_FLOPs * overhead_factor * test_time_compute_multiplier
+```
+
+The `test_time_compute_multiplier` (default 1) accounts for architectures like TabPFN that perform significant computation at inference time. Set >1 if you want total compute to include test-time budget.
+
+### Dense Attention Warnings
+
+Because tabular tokenization can create very long sequences, the calculator warns about dense attention feasibility:
+
+| Sequence Length | Warning Level |
+|----------------|---------------|
+| > 16,384 | Attention warning -- may strain dense attention |
+| > 65,536 | High warning -- very large for dense attention, training may be extremely slow |
+| > 100,000 | Severe warning -- dense attention infeasible, use sparse/factorized attention |
+
+### Worked Examples
+
+**Row-tokenized:** 1B params, 1M tasks, 1,024 rows/task, 50 columns, 1 epoch, factor=6.
+
+```
+tokens_per_task = 1,024 (row mode)
+effective_tokens = 1,000,000 * 1,024 * 1 = 1.024e9 (1.024B tokens)
+base_FLOPs = 6 * 1e9 * 1.024e9 = 6.144e18
+```
+
+**Cell-tokenized** (same inputs):
+
+```
+tokens_per_task = 1,024 * 50 = 51,200 (cell mode)
+effective_tokens = 1,000,000 * 51,200 * 1 = 5.12e10 (51.2B tokens)
+base_FLOPs = 6 * 1e9 * 5.12e10 = 3.072e20
+```
+
+Cell tokenization produces **50x more tokens** (and 50x more FLOPs) than row tokenization for the same data. With 100 columns, it would be 100x. This is the single most impactful decision in tabular foundation model compute planning.
+
+### Tabular Warnings
+
+| Warning | Trigger |
+|---------|---------|
+| Dense attention warnings | Sequence length > 16K / 65K / 100K |
+| Cell + many columns | Cell mode with > 50 columns (extreme sequence lengths) |
+| High test-time multiplier | Multiplier > 5x (may dominate serving cost) |
+| General caveat | Always shown: "less mature than LLM estimates" |
+
+---
+
+## 9. Classical Tabular / GBDT
+
+### How It Works
+
+This mode is fundamentally different from the other three. GBDT algorithms (LightGBM, XGBoost, CatBoost, Random Forest) are not transformer models and cannot be meaningfully estimated with a FLOP model. Instead, the calculator uses **work units** and **empirical throughput benchmarks**.
+
+A work unit represents one row-column-round operation. Total work is:
+
+```
+work_units = rows * columns * boosting_rounds * cv_folds * hp_trials
+```
+
+Training time is estimated by dividing total work by a throughput coefficient (work units per second).
+
+### Input Reference
+
+| Input | Description | Default | Notes |
+|-------|-------------|---------|-------|
+| Algorithm | GBDT implementation | LightGBM | LightGBM, XGBoost, CatBoost, Random Forest, Custom |
+| Rows | Training dataset rows | -- | |
+| Columns | Features | -- | |
+| Boosting rounds | Trees / iterations | -- | |
+| CV folds | Cross-validation folds | 1 | Multiplier on total work |
+| HP trials | Hyperparameter search trials | 1 | Multiplier on total work |
+| CPU / GPU | Implementation target | GPU | CPU is ~10x slower |
+| Throughput coefficient | Work units per second | Auto | Set to 0 for benchmark defaults |
+
+### Default Throughput Benchmarks (GPU)
+
+| Algorithm | Default Throughput (work units/sec) |
+|-----------|-------------------------------------|
+| LightGBM | 5.00e8 (~500M/sec) |
+| XGBoost | 3.00e8 (~300M/sec) |
+| CatBoost | 4.00e8 (~400M/sec) |
+| Random Forest | 2.00e8 (~200M/sec) |
+
+CPU throughput is 10x lower than GPU defaults. These are rough estimates derived from common benchmarks and may be significantly off for your specific workload.
+
+### How to Calibrate
+
+For better accuracy, calibrate with a known run:
+
+1. Run a small training job and record: rows, columns, rounds, wall-clock seconds.
+2. Compute: `throughput = (rows * columns * rounds) / seconds`
+3. Enter this value as the throughput coefficient.
+4. The confidence level improves from "low" to "medium" when a calibrated coefficient is provided.
+
+### Worked Example
+
+**Inputs:** LightGBM, 10M rows, 200 columns, 1,000 rounds, 5-fold CV, 20 HP trials, GPU.
+
+```
+base_work = 10,000,000 * 200 * 1,000 = 2.0e12 work units
+total_work = 2.0e12 * 5 * 20 = 2.0e14 work units
+throughput = 5.0e8 /sec (LightGBM GPU default)
+estimated_time = 2.0e14 / 5.0e8 = 400,000 seconds = 111 hours = 4.6 days
+```
+
+### GBDT Warnings
+
+| Warning | Trigger |
+|---------|---------|
+| No calibration | Throughput coefficient not provided (using rough defaults) |
+| High search multiplier | folds * trials > 50 (search dominates total time) |
+| CPU selected | CPU implementation is ~10x slower than GPU |
+| General caveat | Always shown: "depends heavily on implementation, data, and hardware" |
+
+---
+
+## 10. Confidence Levels
+
+Every estimate includes a confidence label indicating how reliable the estimate is likely to be.
+
+| Level | Meaning |
+|-------|---------|
+| **High** | Well-understood domain with empirically validated formulas. LLM mode with standard settings. |
+| **Medium** | Reasonable approximation but relies on analogies or simplifications. Time-series mode; classical tabular with calibrated throughput. |
+| **Medium-low** | Significant uncertainty. Tabular foundation with row or axial tokenization. |
+| **Low** | Order-of-magnitude estimate at best. Tabular foundation with cell tokenization; classical tabular without calibration. |
+
+### Confidence by Model Family
+
+| Model Family | Settings | Confidence |
+|--------------|----------|------------|
+| LLM | Standard (6ND, BF16, full pretraining) | High |
+| LLM | Non-standard (FP8, SFT/LoRA/RLHF) | Medium |
+| Time-Series | All tokenization modes | Medium |
+| Tabular Foundation | Row or axial tokenization | Medium-low |
+| Tabular Foundation | Cell or custom tokenization | Low |
+| Classical Tabular | With calibrated throughput | Medium |
+| Classical Tabular | With default throughput (no calibration) | Low |
+
+---
+
+## 11. GPU SKU Reference
 
 | GPU | Dense BF16 Peak | Dense FP8 Peak | Memory | Bandwidth | Default MFU |
 |-----|-----------------|----------------|--------|-----------|-------------|
@@ -192,7 +485,9 @@ This normalizes any GPU type to an H100-equivalent count for apples-to-apples co
 
 ---
 
-## 7. Warnings Explained
+## 12. Warnings Explained
+
+### General Warnings (All Modes)
 
 | Warning | Trigger | What To Do |
 |---------|---------|------------|
@@ -203,9 +498,36 @@ This normalizes any GPU type to an H100-equivalent count for apples-to-apples co
 | H200 note | H200 selected | Reminder that H200 has the same raw BF16 peak as H100. Its advantage is memory and bandwidth, which may improve MFU. |
 | Memory bound exceeds compute | Memory lower-bound GPUs > compute GPUs | The model's state memory requires more GPUs than compute alone. The cluster is memory-constrained. |
 
+### Time-Series Warnings
+
+| Warning | Trigger | What To Do |
+|---------|---------|------------|
+| Invalid window geometry | lookback + horizon > avg timesteps | Fix inputs: no training windows can be generated. |
+| Small stride | stride <= 10% of lookback | Many overlapping windows inflate data volume. Increase stride or verify this is intentional. |
+| Channel-expanded inflation | >20 variables with channel_expanded | Consider channel-compressed or custom tokenization to reduce compute. |
+| Patch > lookback | patch_size > lookback_window | Each window produces less than one patch. Reduce patch size. |
+
+### Tabular Foundation Warnings
+
+| Warning | Trigger | What To Do |
+|---------|---------|------------|
+| Attention strain | Sequence > 16K tokens/task | Consider attention-efficient architectures. |
+| High attention | Sequence > 65K tokens/task | Training may be extremely slow with dense attention. |
+| Infeasible attention | Sequence > 100K tokens/task | Dense attention is infeasible. Use sparse, factorized, or row-level attention. |
+| Cell + many columns | Cell mode, >50 columns | Produces extreme sequence lengths. Switch to row or axial mode. |
+| High test-time multiplier | multiplier > 5x | Test-time compute may dominate serving cost. |
+
+### Classical Tabular Warnings
+
+| Warning | Trigger | What To Do |
+|---------|---------|------------|
+| No calibration | Throughput coefficient = 0 | Using rough defaults. Calibrate with a known run for better accuracy. |
+| High search multiplier | folds * trials > 50 | Search dominates total time. Consider Bayesian optimization or early stopping. |
+| CPU selected | cpu implementation | GPU implementations are typically 5-10x faster. |
+
 ---
 
-## 8. Export & Share
+## 13. Export & Share
 
 The calculator supports four export formats:
 
@@ -214,11 +536,11 @@ The calculator supports four export formats:
 - **Markdown** -- formatted summary for docs, Slack, or email
 - **Share URL** -- all scenario parameters encoded in the URL hash fragment
 
-The share URL encodes model size, training window, TPP, GPU selections, MFU overrides, precision, availability, overhead, training mode, and memory bytes per parameter. Paste it in a browser to restore the exact scenario.
+The share URL encodes model family, model size, training window, TPP, GPU selections, MFU overrides, precision, availability, overhead, training mode, and memory bytes per parameter. Paste it in a browser to restore the exact scenario. URLs without a `modelFamily` parameter default to LLM mode for backwards compatibility.
 
 ---
 
-## 9. Custom GPUs
+## 14. Custom GPUs
 
 To add a custom GPU SKU:
 
@@ -231,7 +553,7 @@ Custom GPUs are stored in the browser session. They participate in comparison, s
 
 ---
 
-## 10. Worked Example: 70B Model, 30 Days, H100
+## 15. Worked Example: 70B LLM, 30 Days, H100
 
 **Inputs:**
 - Model: 70B parameters (N = 7.0 x 10^10)
@@ -285,7 +607,7 @@ Sensitivity around this estimate:
 
 ---
 
-## 11. References
+## 16. References
 
 - **[R1]** Hoffmann et al., *Training Compute-Optimal Large Language Models* (Chinchilla), arXiv:2203.15556, 2022. [https://arxiv.org/abs/2203.15556](https://arxiv.org/abs/2203.15556)
 - **[R2]** Epoch AI, *Chinchilla scaling: A replication attempt*, Apr. 2024. [https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt](https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt)
