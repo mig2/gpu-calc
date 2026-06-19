@@ -5,6 +5,7 @@ import { ResultCards } from './ResultCards'
 import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
+import { ReverseSolve } from './ReverseSolve'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <ResultCards />
           <GpuComparisonTable />
           <SensitivityMatrix />
+          <ReverseSolve />
         </section>
       </main>
     </div>
