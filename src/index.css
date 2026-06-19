@@ -436,6 +436,10 @@ input:focus, select:focus {
   padding: 1rem;
 }
 
+.trace-drawers {
+  margin-top: 0.75rem;
+}
+
 .trace-details {
   margin-top: 0.75rem;
 }

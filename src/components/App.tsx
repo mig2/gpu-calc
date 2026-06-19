@@ -2,6 +2,7 @@ import { ScenarioForm } from './ScenarioForm'
 import { GpuSelector } from './GpuSelector'
 import { AdvancedAssumptions } from './AdvancedAssumptions'
 import { ResultCards } from './ResultCards'
+import { FormulaTraceDrawer } from './FormulaTraceDrawer'
 import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
@@ -25,6 +26,7 @@ export default function App() {
         <section className="results-area">
           <AssumptionChips />
           <ResultCards />
+          <FormulaTraceDrawer />
           <GpuComparisonTable />
           <SensitivityMatrix />
           <ReverseSolve />
