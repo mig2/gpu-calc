@@ -158,3 +158,11 @@ H100s = ceil(6.47e23 / (2.592e6 x 3.56e14)) ~= 701
 **\[R6\]** NVIDIA GB200 NVL72 product specifications. https://www.nvidia.com/en-us/data-center/gb200-nvl72/
 
 **\[R7\]** Sardana et al., Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws, arXiv:2401.00448, 2024. https://arxiv.org/abs/2401.00448
+
+**\[R8\]** Held, Hall, Liang, Yang, Relative Scaling Laws for LLMs, arXiv:2510.24626, 2025. https://arxiv.org/abs/2510.24626
+
+**\[R9\]** Wen, Hall, Ma, Liang, Fantastic Pretraining Optimizers and Where to Find Them, 2025.
+
+**\[R10\]** Marin: Open Development of Frontier AI, marin.community. https://marin.community/
+
+**\[R11\]** Marin Community, Levanter: Legible, Scalable, Reproducible Foundation Models with Named Tensors and JAX. https://github.com/marin-community/levanter
