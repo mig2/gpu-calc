@@ -792,6 +792,36 @@ input:focus, select:focus {
 .ts-breakdown { margin-bottom: 1rem; }
 .ts-breakdown h3 { font-size: 1rem; margin-bottom: 0.5rem; }
 
+/* Reference Comparison */
+.reference-comparison {
+  margin-top: 1.5rem;
+}
+
+.reference-comparison h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.reference-summary {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.reference-summary strong {
+  color: var(--text);
+}
+
+.highlight-row {
+  background: rgba(99, 102, 241, 0.1) !important;
+}
+
+.highlight-row td {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;

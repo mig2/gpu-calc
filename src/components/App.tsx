@@ -7,6 +7,7 @@ import { FormulaTraceDrawer } from './FormulaTraceDrawer'
 import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
+import { ReferenceComparison } from './ReferenceComparison'
 import { ReverseSolve } from './ReverseSolve'
 import { CalibrationMode } from './CalibrationMode'
 import { WarningsPanel } from './WarningsPanel'
@@ -86,6 +87,7 @@ export default function App() {
           <FormulaTraceDrawer />
           <GpuComparisonTable />
           <SensitivityMatrix />
+          <ReferenceComparison />
           <ReverseSolve />
           <CalibrationMode />
           <WarningsPanel />
