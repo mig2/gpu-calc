@@ -22,7 +22,8 @@ const WINDOW_PRESETS = [
 const TPP_PRESETS = [
   { label: '20 (Chinchilla)', value: 20 },
   { label: '50', value: 50 },
-  { label: '100', value: 100 },
+  { label: '100 (Inference-optimal)', value: 100 },
+  { label: '200 (Over-trained)', value: 200 },
 ]
 
 const TRAINING_MODES: { label: string; value: TrainingMode }[] = [
@@ -186,7 +187,7 @@ export function LlmForm() {
 
       <fieldset>
         <legend>
-          <Tooltip text="How many tokens to train on per parameter. Chinchilla-optimal is ~20. Modern recipes often use 50-100+ for inference efficiency.">
+          <Tooltip text="Chinchilla-optimal is ~20 tokens per parameter. Modern practice often over-trains with 100-200+ TPP for better inference efficiency, following insights from Marin and other projects.">
             Tokens per Parameter
           </Tooltip>
         </legend>
