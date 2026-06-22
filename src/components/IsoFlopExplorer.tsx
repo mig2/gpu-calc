@@ -153,11 +153,12 @@ export function IsoFlopExplorer() {
                 />
                 <Line type="monotone" dataKey="maxParams" stroke="#6366f1" strokeWidth={2} dot={false} />
                 {currentTpp && currentN && (
-                  <ReferenceDot x={currentTpp} y={currentN} r={6} fill="#22c55e" stroke="#fff" strokeWidth={2} />
+                  <ReferenceDot x={currentTpp} y={currentN} r={6} fill="#22c55e" stroke="#fff" strokeWidth={2}
+                    label={{ value: 'You', position: 'top', fill: '#22c55e', fontSize: 10, fontWeight: 600 }} />
                 )}
                 {refDots.map((ref) => (
-                  <ReferenceDot key={ref.name} x={ref.tpp} y={ref.params} r={4} fill="#f59e0b" stroke="none">
-                  </ReferenceDot>
+                  <ReferenceDot key={ref.name} x={ref.tpp} y={ref.params} r={4} fill="#f59e0b" stroke="none"
+                    label={{ value: ref.name, position: 'right', fill: '#8b90a0', fontSize: 9, offset: 8 }} />
                 ))}
               </LineChart>
             </ResponsiveContainer>
