@@ -70,7 +70,7 @@ Estimates training time for gradient-boosted decision tree algorithms (LightGBM,
 |-------|-------------|---------|-------------|
 | Model parameters | Number of trainable parameters | 70B | Positive; accepts M/B/T units |
 | Training window | Wall-clock time budget | 30 days | Positive; accepts h/d/w units |
-| Tokens per parameter (TPP) | Training tokens = TPP x N | 20 | Positive integer; presets 20, 50, 100 |
+| Tokens per parameter (TPP) | Training tokens = TPP x N | 20 | Positive integer; presets 20, 50, 100, 200 |
 | Training mode | Type of training run | Full pretraining | Full pretraining, Continued pretraining, SFT, LoRA, RLHF, Distillation |
 | Precision | Numerical format | BF16 Dense | BF16 Dense, FP8 Dense (experimental) |
 | GPU SKU | Accelerator type(s) | H100 SXM | Multi-select: H100, H200, B200, GB200, custom |
@@ -100,7 +100,7 @@ Expand the Advanced Assumptions panel to control:
 - **Availability** -- fraction of wall-clock time spent training (accounts for failures, restarts, maintenance)
 - **Overhead** -- extra compute from checkpointing, evaluation, data stalls
 - **Precision** -- BF16 (standard) or FP8 (experimental, higher theoretical peak)
-- **Tokens per parameter** -- override the Chinchilla-20 default
+- **Tokens per parameter** -- override the Chinchilla-20 default. Presets include 20 (Chinchilla), 50, 100 (Inference-optimal), and 200 (Over-trained). See Section 5.8 for details on over-training.
 
 All results update live as you adjust sliders.
 
@@ -149,6 +149,64 @@ memory_lower_bound_GPUs = ceil(N * bytes_per_parameter / (GPU_memory * 0.85))
 ```
 
 If the memory lower bound exceeds the compute requirement, the result is flagged as **memory-bound** rather than compute-bound. This indicates the model needs more GPUs than compute alone would suggest, due to memory pressure from optimizer states, gradients, and parameters.
+
+### 5.8 Over-Training TPP Presets
+
+The tokens-per-parameter (TPP) presets reflect the evolution of training practice:
+
+| Preset | TPP | Rationale |
+|--------|-----|-----------|
+| Chinchilla | 20 | Compute-optimal under the Hoffmann et al. 2022 scaling law [R1]. Minimizes loss for a fixed FLOP budget by balancing model size and data. |
+| 50 | 50 | A moderate over-training ratio, common in early post-Chinchilla models. |
+| Inference-optimal | 100 | Deliberately trains a smaller model on more data. The model is cheaper to serve at inference time while approaching the loss of a larger Chinchilla-optimal model trained with the same compute. See Sardana et al. [R7]. |
+| Over-trained | 200 | Aggressive over-training as practiced by Llama 3, Marin, and other modern projects. Llama 3 8B used ~1,875 tokens per parameter (15T tokens / 8B params); Marin 8B used 200 TPP. The goal is to squeeze maximum quality into a small, fast-to-serve model. |
+
+**Why over-train?** Chinchilla-optimal minimizes training loss for a given compute budget, but it says nothing about inference cost. A 70B Chinchilla-optimal model is expensive to serve. Training a 7B model on 10-20x more tokens costs the same training FLOPs but produces a model that is 10x cheaper per inference query. Modern practice deliberately over-trains smaller models for inference efficiency, accepting slightly higher loss in exchange for dramatically lower serving cost.
+
+### 5.9 Compute Context / Reference Model Comparison
+
+Below the main result, the calculator shows a **Compute Context** table comparing your scenario's total FLOPs to known training runs. This provides intuitive context: "Is my run the size of GPT-3, or Llama 3 70B, or something in between?"
+
+The table includes:
+
+| Model | Parameters | Tokens | ~FLOPs | Source |
+|-------|-----------|--------|--------|--------|
+| Llama 2 7B | 7B | 2T | 8.4e19 | Touvron et al. 2023 |
+| Llama 2 13B | 13B | 2T | 1.6e20 | Touvron et al. 2023 |
+| Marin 8B | 8B | 1.6T | 7.7e22 | Marin Community 2025 |
+| GPT-3 175B | 175B | 300B | 3.2e23 | Brown et al. 2020 |
+| Chinchilla 70B | 70B | 1.4T | 5.9e23 | Hoffmann et al. 2022 |
+| Marin 32B | 32B | 3.2T | 6.1e23 | Marin Community 2025 |
+| Llama 3 8B | 8B | 15T | 7.2e23 | Meta 2024 |
+| Llama 2 70B | 70B | 2T | 8.4e23 | Touvron et al. 2023 |
+| Llama 3 70B | 70B | 15T | 6.3e24 | Meta 2024 |
+| Llama 3 405B | 405B | 15T | 3.6e25 | Meta 2024 |
+
+The row closest to your compute budget is highlighted. A "vs Yours" column shows the ratio of your FLOPs to each reference model's FLOPs, giving a quick sense of relative scale.
+
+This table appears for all transformer-based modes (LLM, Time-Series, Tabular Foundation) but not for Classical Tabular / GBDT, which does not use a FLOP model.
+
+### 5.10 IsoFLOP Explorer
+
+The IsoFLOP Explorer is an interactive chart that visualizes the tradeoff between model size and tokens-per-parameter for a fixed compute budget. It answers the question: "Given my FLOP budget, what combinations of model size and data volume are feasible?"
+
+**The chart:**
+- **X axis** -- Tokens per parameter (TPP), ranging from 5 to 300
+- **Y axis** -- Maximum model size (log scale)
+- **Curve** -- The IsoFLOP frontier: `N = sqrt(budget / (6 * TPP * overhead))`
+- **Green dot** -- Your current scenario's (TPP, N) position
+- **Amber dots** -- Known reference models that fall within the chart's range, labeled with model names
+
+Points above the curve require more compute than your budget. Points below it are feasible.
+
+**Two entry modes:**
+
+1. **Current Scenario** -- Uses the total FLOPs from your active scenario. No extra input needed.
+2. **GPU Budget** -- Enter a GPU count, GPU SKU, training window (days), and MFU. The explorer derives the FLOP budget as: `budget = gpuCount * peakFLOPs * MFU * availability * windowDays * 86400`
+
+The IsoFLOP Explorer is available for all transformer-based modes (LLM, Time-Series, Tabular Foundation) and hidden for Classical Tabular.
+
+**How to read it:** If your green dot is near the curve, your scenario is roughly on the frontier -- you are making efficient use of your compute. If your dot is well below the curve, you have headroom to train a larger model or use more data. If your dot is above the curve (which should not happen for a self-consistent scenario), your scenario exceeds the budget.
 
 ---
 
@@ -616,3 +674,7 @@ Sensitivity around this estimate:
 - **[R5]** NVIDIA HGX B200 specifications. [https://www.nvidia.com/en-us/data-center/hgx/](https://www.nvidia.com/en-us/data-center/hgx/)
 - **[R6]** NVIDIA GB200 NVL72 specifications. [https://www.nvidia.com/en-us/data-center/gb200-nvl72/](https://www.nvidia.com/en-us/data-center/gb200-nvl72/)
 - **[R7]** Sardana et al., *Beyond Chinchilla-Optimal: Accounting for Inference in Language Model Scaling Laws*, arXiv:2401.00448, 2024. [https://arxiv.org/abs/2401.00448](https://arxiv.org/abs/2401.00448)
+- **[R8]** Marin Project, *Marin: an open-source research framework for training language models*, 2025. [https://github.com/marin-community/marin](https://github.com/marin-community/marin)
+- **[R9]** Liang, Percy et al., Stanford CRFM / Marin: *Building open language models*, 2025. [https://crfm.stanford.edu/](https://crfm.stanford.edu/)
+- **[R10]** Touvron et al., *Llama 2: Open Foundation and Fine-Tuned Chat Models*, arXiv:2307.09288, 2023. [https://arxiv.org/abs/2307.09288](https://arxiv.org/abs/2307.09288)
+- **[R11]** Meta AI, *The Llama 3 Herd of Models*, arXiv:2407.21783, 2024. [https://arxiv.org/abs/2407.21783](https://arxiv.org/abs/2407.21783)
