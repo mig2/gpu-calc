@@ -8,6 +8,7 @@ import { AssumptionChips } from './AssumptionChips'
 import { GpuComparisonTable } from './GpuComparisonTable'
 import { SensitivityMatrix } from './SensitivityMatrix'
 import { ReferenceComparison } from './ReferenceComparison'
+import { IsoFlopExplorer } from './IsoFlopExplorer'
 import { ReverseSolve } from './ReverseSolve'
 import { CalibrationMode } from './CalibrationMode'
 import { WarningsPanel } from './WarningsPanel'
@@ -88,6 +89,7 @@ export default function App() {
           <GpuComparisonTable />
           <SensitivityMatrix />
           <ReferenceComparison />
+          <IsoFlopExplorer />
           <ReverseSolve />
           <CalibrationMode />
           <WarningsPanel />

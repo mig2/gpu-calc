@@ -822,6 +822,80 @@ input:focus, select:focus {
   font-weight: 600;
 }
 
+/* IsoFLOP Explorer */
+.isoflop-section {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.isoflop-content {
+  margin-top: 0.75rem;
+}
+
+.isoflop-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.isoflop-controls fieldset {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.isoflop-controls input[type="number"] {
+  width: 100px;
+}
+
+.isoflop-controls select {
+  width: auto;
+  min-width: 150px;
+}
+
+.isoflop-budget {
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+.isoflop-budget strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.isoflop-chart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.isoflop-legend {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.isoflop-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
