@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { ScenarioForm } from './ScenarioForm'
 import { GpuSelector } from './GpuSelector'
 import { AdvancedAssumptions } from './AdvancedAssumptions'
@@ -18,9 +18,12 @@ import { ModelFamilyTabs } from './ModelFamilyTabs'
 import { TimeSeriesBreakdown } from './TimeSeriesBreakdown'
 import { TabularBreakdown } from './TabularBreakdown'
 import { ClassicalBreakdown } from './ClassicalBreakdown'
+import { ModeSelector } from './ModeSelector'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 import type { ModelFamily } from '../engine/types'
+
+export type AppMode = 'training' | 'inference'
 
 const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
   llm: {
@@ -42,6 +45,7 @@ const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
 }
 
 export default function App() {
+  const [mode, setMode] = useState<AppMode>('training')
   const modelFamily = useScenarioStore((s) => s.modelFamily)
   const { title, subtitle } = FAMILY_TITLES[modelFamily] ?? FAMILY_TITLES.llm
 
@@ -60,41 +64,49 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>{title}</h1>
+        <h1>{mode === 'training' ? title : 'Inference Cost Calculator'}</h1>
         <p className="subtitle">
-          {subtitle}
+          {mode === 'training' ? subtitle : 'Compare API costs vs self-hosting for LLM inference'}
         </p>
         <div className="header-actions">
-          <ExportControls />
+          {mode === 'training' && <ExportControls />}
           <a href="/help.html" target="_blank" rel="noopener noreferrer" className="help-link">
             Help
           </a>
         </div>
       </header>
-      <main className="app-main">
-        <aside className="input-rail">
-          <ModelFamilyTabs />
-          <ScenarioForm />
-          <GpuSelector />
-          <AdvancedAssumptions />
-          <CustomGpuEditor />
-        </aside>
-        <section className="results-area">
-          <AssumptionChips />
-          <TimeSeriesBreakdown />
-          <TabularBreakdown />
-          <ClassicalBreakdown />
-          <ResultCards />
-          <FormulaTraceDrawer />
-          <GpuComparisonTable />
-          <SensitivityMatrix />
-          <ReferenceComparison />
-          <IsoFlopExplorer />
-          <ReverseSolve />
-          <CalibrationMode />
-          <WarningsPanel />
-        </section>
-      </main>
+      <ModeSelector mode={mode} setMode={setMode} />
+      {mode === 'training' && (
+        <main className="app-main">
+          <aside className="input-rail">
+            <ModelFamilyTabs />
+            <ScenarioForm />
+            <GpuSelector />
+            <AdvancedAssumptions />
+            <CustomGpuEditor />
+          </aside>
+          <section className="results-area">
+            <AssumptionChips />
+            <TimeSeriesBreakdown />
+            <TabularBreakdown />
+            <ClassicalBreakdown />
+            <ResultCards />
+            <FormulaTraceDrawer />
+            <GpuComparisonTable />
+            <SensitivityMatrix />
+            <ReferenceComparison />
+            <IsoFlopExplorer />
+            <ReverseSolve />
+            <CalibrationMode />
+            <WarningsPanel />
+          </section>
+        </main>
+      )}
+      {mode === 'inference' && (
+        <main className="inference-calculator">
+          <p className="coming-soon-msg">Inference calculator coming soon.</p>
+        </main>
+      )}
     </div>
   )
 }

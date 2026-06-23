@@ -896,6 +896,35 @@ input:focus, select:focus {
   border-radius: 50%;
 }
 
+/* Mode Selector */
+.mode-selector {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 400px;
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.mode-tab:last-child { border-right: none; }
+.mode-tab:hover { background: var(--surface-hover); color: var(--text); }
+.mode-tab.active { background: var(--accent); color: white; }
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
