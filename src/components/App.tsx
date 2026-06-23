@@ -20,6 +20,7 @@ import { TabularBreakdown } from './TabularBreakdown'
 import { ClassicalBreakdown } from './ClassicalBreakdown'
 import { ModeSelector } from './ModeSelector'
 import { InferenceCalculator } from './InferenceCalculator'
+import { InferenceExportControls } from './InferenceExportControls'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 import type { ModelFamily } from '../engine/types'
@@ -71,6 +72,7 @@ export default function App() {
         </p>
         <div className="header-actions">
           {mode === 'training' && <ExportControls />}
+          {mode === 'inference' && <InferenceExportControls />}
           <a href="/help.html" target="_blank" rel="noopener noreferrer" className="help-link">
             Help
           </a>
