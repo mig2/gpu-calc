@@ -1,0 +1,17 @@
+{
+  "lastUpdated": "2026-06-01",
+  "note": "Throughput estimates from vLLM/TGI benchmarks. Actual performance varies by batch size, sequence length, and configuration.",
+  "entries": [
+    { "model": "Llama 3 8B", "parameters": "8B", "gpu": "H100 SXM", "gpuCount": 1, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 2800, "maxConcurrentRequests": 64 },
+    { "model": "Llama 3 8B", "parameters": "8B", "gpu": "A100 80GB", "gpuCount": 1, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 1500, "maxConcurrentRequests": 32 },
+    { "model": "Llama 3 70B", "parameters": "70B", "gpu": "H100 SXM", "gpuCount": 4, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 1200, "maxConcurrentRequests": 32 },
+    { "model": "Llama 3 70B", "parameters": "70B", "gpu": "H100 SXM", "gpuCount": 2, "quantization": "INT8", "framework": "vLLM", "outputTokensPerSec": 900, "maxConcurrentRequests": 16 },
+    { "model": "Llama 3 70B", "parameters": "70B", "gpu": "A100 80GB", "gpuCount": 4, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 600, "maxConcurrentRequests": 16 },
+    { "model": "Llama 3 405B", "parameters": "405B", "gpu": "H100 SXM", "gpuCount": 8, "quantization": "FP8", "framework": "vLLM", "outputTokensPerSec": 400, "maxConcurrentRequests": 8 },
+    { "model": "Mistral 7B", "parameters": "7B", "gpu": "H100 SXM", "gpuCount": 1, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 3200, "maxConcurrentRequests": 64 },
+    { "model": "Mixtral 8x7B", "parameters": "47B MoE", "gpu": "H100 SXM", "gpuCount": 2, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 1800, "maxConcurrentRequests": 32 },
+    { "model": "Qwen 2.5 7B", "parameters": "7B", "gpu": "H100 SXM", "gpuCount": 1, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 3000, "maxConcurrentRequests": 64 },
+    { "model": "Qwen 2.5 72B", "parameters": "72B", "gpu": "H100 SXM", "gpuCount": 4, "quantization": "FP16", "framework": "vLLM", "outputTokensPerSec": 1100, "maxConcurrentRequests": 32 },
+    { "model": "DeepSeek-V3", "parameters": "671B MoE", "gpu": "H100 SXM", "gpuCount": 8, "quantization": "FP8", "framework": "vLLM", "outputTokensPerSec": 500, "maxConcurrentRequests": 16 }
+  ]
+}

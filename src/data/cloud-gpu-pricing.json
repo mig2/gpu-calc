@@ -1,0 +1,43 @@
+{
+  "lastUpdated": "2026-06-01",
+  "providers": [
+    {
+      "provider": "AWS",
+      "instances": [
+        { "instance": "p5.48xlarge", "gpu": "H100 SXM", "gpuCount": 8, "onDemandPerHr": 98.32, "reservedPerHr": 63.91, "spotPerHr": null },
+        { "instance": "p4d.24xlarge", "gpu": "A100 40GB", "gpuCount": 8, "onDemandPerHr": 32.77, "reservedPerHr": 19.22, "spotPerHr": 13.00 }
+      ]
+    },
+    {
+      "provider": "GCP",
+      "instances": [
+        { "instance": "a3-highgpu-8g", "gpu": "H100 80GB", "gpuCount": 8, "onDemandPerHr": 98.35, "reservedPerHr": 65.57, "spotPerHr": 29.51 },
+        { "instance": "a2-highgpu-8g", "gpu": "A100 80GB", "gpuCount": 8, "onDemandPerHr": 39.34, "reservedPerHr": 24.61, "spotPerHr": 11.80 }
+      ]
+    },
+    {
+      "provider": "Azure",
+      "instances": [
+        { "instance": "ND H100 v5", "gpu": "H100 SXM", "gpuCount": 8, "onDemandPerHr": 98.24, "reservedPerHr": 63.86, "spotPerHr": null }
+      ]
+    },
+    {
+      "provider": "Lambda Labs",
+      "instances": [
+        { "instance": "gpu_8x_h100_sxm5", "gpu": "H100 SXM", "gpuCount": 8, "onDemandPerHr": 27.92, "reservedPerHr": null, "spotPerHr": null }
+      ]
+    },
+    {
+      "provider": "CoreWeave",
+      "instances": [
+        { "instance": "H100 SXM", "gpu": "H100 SXM", "gpuCount": 1, "onDemandPerHr": 4.76, "reservedPerHr": 2.21, "spotPerHr": null }
+      ]
+    },
+    {
+      "provider": "RunPod",
+      "instances": [
+        { "instance": "H100 SXM", "gpu": "H100 SXM", "gpuCount": 1, "onDemandPerHr": 3.99, "reservedPerHr": null, "spotPerHr": 2.49 }
+      ]
+    }
+  ]
+}
