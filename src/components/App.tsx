@@ -19,6 +19,7 @@ import { TimeSeriesBreakdown } from './TimeSeriesBreakdown'
 import { TabularBreakdown } from './TabularBreakdown'
 import { ClassicalBreakdown } from './ClassicalBreakdown'
 import { ModeSelector } from './ModeSelector'
+import { InferenceCalculator } from './InferenceCalculator'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 import type { ModelFamily } from '../engine/types'
@@ -103,8 +104,8 @@ export default function App() {
         </main>
       )}
       {mode === 'inference' && (
-        <main className="inference-calculator">
-          <p className="coming-soon-msg">Inference calculator coming soon.</p>
+        <main>
+          <InferenceCalculator />
         </main>
       )}
     </div>

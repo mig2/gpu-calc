@@ -925,11 +925,101 @@ input:focus, select:focus {
 .mode-tab:hover { background: var(--surface-hover); color: var(--text); }
 .mode-tab.active { background: var(--accent); color: white; }
 
+/* Inference Calculator */
+.inference-calculator {
+  max-width: 1200px;
+}
+
+.inference-section {
+  margin-bottom: 1.5rem;
+}
+
+.inference-section h2 {
+  font-size: 1.125rem;
+  margin-bottom: 0.75rem;
+}
+
+.inference-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.inference-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.inference-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+}
+
+.buy-title { border-bottom-color: #f59e0b; }
+.build-title { border-bottom-color: #6366f1; }
+
+.inference-result-card {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.breakeven-section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.breakeven-summary {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+}
+
+.breakeven-summary strong {
+  color: var(--text);
+}
+
+.buy-accent { color: #f59e0b; }
+.build-accent { color: #6366f1; }
+
+.breakeven-chart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.inference-data-note {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 900px) {
   .app-main {
     grid-template-columns: 1fr;
   }
   .input-rail {
     position: static;
+  }
+  .inference-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+  .inference-usage-grid {
+    grid-template-columns: 1fr;
   }
 }
