@@ -10,9 +10,9 @@ type PricingTier = 'onDemand' | 'reserved' | 'spot'
 
 export function InferenceCalculator() {
   // Usage pattern
-  const [requestsPerDay, setRequestsPerDay] = useState(10000)
-  const [avgInputTokens, setAvgInputTokens] = useState(1000)
-  const [avgOutputTokens, setAvgOutputTokens] = useState(500)
+  const [requestsPerDay, setRequestsPerDay] = useState(100000)
+  const [avgInputTokens, setAvgInputTokens] = useState(2000)
+  const [avgOutputTokens, setAvgOutputTokens] = useState(1000)
 
   // API selection
   const [apiProviderIdx, setApiProviderIdx] = useState(0)
@@ -68,9 +68,9 @@ export function InferenceCalculator() {
             <legend>Requests / Day</legend>
             <input type="number" min={1} value={requestsPerDay} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setRequestsPerDay(v) }} />
             <div className="presets">
-              {[100, 1000, 10000, 50000, 100000].map((n) => (
+              {[10000, 50000, 100000, 500000, 1000000, 5000000].map((n) => (
                 <button key={n} className={requestsPerDay === n ? 'active' : ''} onClick={() => setRequestsPerDay(n)}>
-                  {n >= 1000 ? `${n / 1000}K` : n}
+                  {n >= 1e6 ? `${n / 1e6}M` : `${n / 1000}K`}
                 </button>
               ))}
             </div>
@@ -79,8 +79,10 @@ export function InferenceCalculator() {
             <legend>Avg Input Tokens</legend>
             <input type="number" min={1} value={avgInputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setAvgInputTokens(v) }} />
             <div className="presets">
-              {[100, 500, 1000, 2000, 4000].map((n) => (
-                <button key={n} className={avgInputTokens === n ? 'active' : ''} onClick={() => setAvgInputTokens(n)}>{n}</button>
+              {[500, 1000, 2000, 4000, 8000, 16000].map((n) => (
+                <button key={n} className={avgInputTokens === n ? 'active' : ''} onClick={() => setAvgInputTokens(n)}>
+                  {n >= 1000 ? `${n / 1000}K` : n}
+                </button>
               ))}
             </div>
           </fieldset>
@@ -88,11 +90,16 @@ export function InferenceCalculator() {
             <legend>Avg Output Tokens</legend>
             <input type="number" min={1} value={avgOutputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setAvgOutputTokens(v) }} />
             <div className="presets">
-              {[50, 200, 500, 1000, 2000].map((n) => (
-                <button key={n} className={avgOutputTokens === n ? 'active' : ''} onClick={() => setAvgOutputTokens(n)}>{n}</button>
+              {[200, 500, 1000, 2000, 4000, 8000].map((n) => (
+                <button key={n} className={avgOutputTokens === n ? 'active' : ''} onClick={() => setAvgOutputTokens(n)}>
+                  {n >= 1000 ? `${n / 1000}K` : n}
+                </button>
               ))}
             </div>
           </fieldset>
+          <p className="inference-data-note" style={{ marginTop: '0.5rem' }}>
+            Daily volume: <strong>{((requestsPerDay * avgInputTokens) / 1e6).toFixed(1)}M input tokens</strong> + <strong>{((requestsPerDay * avgOutputTokens) / 1e6).toFixed(1)}M output tokens</strong> = <strong>{((requestsPerDay * (avgInputTokens + avgOutputTokens)) / 1e6).toFixed(1)}M total tokens/day</strong>
+          </p>
         </div>
       </div>
 
