@@ -65,9 +65,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>{mode === 'training' ? title : 'Inference Cost Calculator'}</h1>
+        <h1>GPU Calculator</h1>
         <p className="subtitle">
-          {mode === 'training' ? subtitle : 'Compare API costs vs self-hosting for LLM inference'}
+          {mode === 'training' ? subtitle : 'Compare API costs vs self-hosting for LLM inference — buy vs build analysis'}
         </p>
         <div className="header-actions">
           {mode === 'training' && <ExportControls />}
