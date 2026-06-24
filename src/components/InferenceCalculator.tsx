@@ -30,6 +30,8 @@ export function InferenceCalculator() {
   // Use case & scale
   const [useCaseIdx, setUseCaseIdx] = useState<number | null>(null)
   const [scaleMethod, setScaleMethod] = useState<ScaleMethod>('users')
+  const [customTokens, setCustomTokens] = useState<Record<number, { input: number; output: number }>>({})
+  const [editingUseCase, setEditingUseCase] = useState<number | null>(null)
 
   // Scale inputs
   const [numUsers, setNumUsers] = useState(500)
@@ -54,11 +56,12 @@ export function InferenceCalculator() {
   // When use case changes, auto-fill token sizes
   useEffect(() => {
     if (useCaseIdx !== null) {
+      const custom = customTokens[useCaseIdx]
       const uc = USE_CASES[useCaseIdx]
-      setAvgInputTokens(uc.inputTokens)
-      setAvgOutputTokens(uc.outputTokens)
+      setAvgInputTokens(custom?.input ?? uc.inputTokens)
+      setAvgOutputTokens(custom?.output ?? uc.outputTokens)
     }
-  }, [useCaseIdx])
+  }, [useCaseIdx, customTokens])
 
   // When scale method inputs change, derive requests/day
   useEffect(() => {
@@ -122,18 +125,84 @@ export function InferenceCalculator() {
       <div className="inference-section">
         <h2>1. What are you building?</h2>
         <div className="use-case-grid">
-          {USE_CASES.map((uc, i) => (
-            <button
-              key={uc.label}
-              className={`use-case-card ${useCaseIdx === i ? 'active' : ''}`}
-              onClick={() => setUseCaseIdx(i)}
-            >
-              <span className="use-case-label">{uc.label}</span>
-              <span className="use-case-desc">{uc.description}</span>
-              <span className="use-case-tokens">{uc.inputTokens >= 1000 ? `${uc.inputTokens / 1000}K` : uc.inputTokens} in / {uc.outputTokens >= 1000 ? `${uc.outputTokens / 1000}K` : uc.outputTokens} out</span>
-            </button>
-          ))}
+          {USE_CASES.map((uc, i) => {
+            const displayInput = customTokens[i]?.input ?? uc.inputTokens
+            const displayOutput = customTokens[i]?.output ?? uc.outputTokens
+            const isCustomized = i in customTokens
+            return (
+              <button
+                key={uc.label}
+                className={`use-case-card ${useCaseIdx === i ? 'active' : ''}`}
+                onClick={() => setUseCaseIdx(i)}
+              >
+                <span className="use-case-label">{uc.label}</span>
+                <span className="use-case-desc">{uc.description}</span>
+                <span className="use-case-tokens">
+                  {displayInput >= 1000 ? `${displayInput / 1000}K` : displayInput} in / {displayOutput >= 1000 ? `${displayOutput / 1000}K` : displayOutput} out
+                  {isCustomized && <span className="use-case-modified"> (edited)</span>}
+                </span>
+                <span
+                  className="use-case-gear"
+                  onClick={(e) => { e.stopPropagation(); setEditingUseCase(editingUseCase === i ? null : i) }}
+                  role="button"
+                  aria-label={`Configure ${uc.label}`}
+                >
+                  ⚙
+                </span>
+              </button>
+            )
+          })}
         </div>
+        {editingUseCase !== null && (
+          <div className="use-case-editor">
+            <h4>Customize: {USE_CASES[editingUseCase].label}</h4>
+            <div className="scale-inputs">
+              <fieldset>
+                <legend>Input Tokens</legend>
+                <input type="number" min={1}
+                  value={customTokens[editingUseCase]?.input ?? USE_CASES[editingUseCase].inputTokens}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value)
+                    if (v > 0) {
+                      setCustomTokens(prev => ({
+                        ...prev,
+                        [editingUseCase]: {
+                          input: v,
+                          output: prev[editingUseCase]?.output ?? USE_CASES[editingUseCase].outputTokens,
+                        }
+                      }))
+                    }
+                  }}
+                />
+              </fieldset>
+              <fieldset>
+                <legend>Output Tokens</legend>
+                <input type="number" min={1}
+                  value={customTokens[editingUseCase]?.output ?? USE_CASES[editingUseCase].outputTokens}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value)
+                    if (v > 0) {
+                      setCustomTokens(prev => ({
+                        ...prev,
+                        [editingUseCase]: {
+                          input: prev[editingUseCase]?.input ?? USE_CASES[editingUseCase].inputTokens,
+                          output: v,
+                        }
+                      }))
+                    }
+                  }}
+                />
+              </fieldset>
+            </div>
+            <button className="use-case-reset" onClick={() => {
+              setCustomTokens(prev => {
+                const next = { ...prev }
+                delete next[editingUseCase]
+                return next
+              })
+            }}>Reset to defaults</button>
+          </div>
+        )}
       </div>
 
       {/* Step 2: Scale */}

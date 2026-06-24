@@ -1010,6 +1010,7 @@ input:focus, select:focus {
 }
 
 .use-case-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -1049,6 +1050,58 @@ input:focus, select:focus {
   font-size: 0.65rem;
   color: var(--text-muted);
   margin-top: 0.25rem;
+}
+
+.use-case-gear {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.use-case-gear:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.use-case-modified {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.use-case-editor {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.use-case-editor h4 {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.use-case-reset {
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.use-case-reset:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
 }
 
 /* Scale Method */
