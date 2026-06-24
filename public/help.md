@@ -665,7 +665,71 @@ Sensitivity around this estimate:
 
 ---
 
-## 16. References
+## 16. Inference Calculator -- Build vs Buy
+
+The Inference Calculator helps you decide whether to serve an LLM via a managed API (buy) or self-host on your own GPUs (build). It estimates monthly costs for both approaches and identifies the breakeven point.
+
+### 16.1 Use-Case Presets
+
+Select a use-case preset to auto-fill typical input and output token counts per request. You can always override the values after selecting a preset.
+
+| Use Case | Input Tokens | Output Tokens | Typical Scenario |
+|----------|-------------|--------------|-----------------|
+| Chatbot / Support | 500 | 300 | Customer service, short Q&A turns |
+| RAG / Q&A | 4,000 | 500 | Document retrieval + answer generation |
+| Summarization | 10,000 | 500 | Legal, financial, or research documents |
+| Coding Assistant | 8,000 | 2,000 | Code context + generation |
+| Agentic Workflow | 16,000 | 4,000 | Multi-step tool use, autonomous agents |
+| Long-context Analysis | 50,000 | 1,000 | Full documents, minimal output |
+
+These presets are derived from Microsoft Azure inference traces (2023-2024), OpenRouter's 100T-token usage study, and enterprise production patterns.
+
+### 16.2 Scale Methods
+
+Three ways to specify your inference volume:
+
+- **By Users** -- Enter user count and requests per user per day. The calculator multiplies them to get total requests/day. Common example: 1,000 users x 20 requests = 20,000 req/day.
+- **By Token Budget** -- Enter a monthly token budget in millions. The calculator back-solves requests/day from the token budget and per-request token sizes (input + output tokens per request).
+- **Direct** -- Enter raw requests/day for power users who already know their exact throughput requirements.
+
+### 16.3 Buy (API) Panel
+
+Pick a provider and model. The panel shows:
+
+- **Monthly cost** -- total spend at current volume
+- **Cost per request** -- unit economics for a single request
+- **Annual projection** -- 12-month cost extrapolation
+- **Input/output cost split** -- breakdown showing how much of the cost comes from input tokens vs output tokens
+
+### 16.4 Build (Self-host) Panel
+
+Pick a model to serve, GPU configuration, and cloud provider. The panel shows:
+
+- **Monthly GPU cost** -- cloud compute spend for the GPU instances
+- **Throughput feasibility** -- whether the GPU configuration can handle the target request rate
+- **Utilization** -- what fraction of GPU capacity the workload consumes
+- **Estimated TTFT** -- approximate time to first token for the configuration
+
+### 16.5 Breakeven Analysis
+
+A chart showing API cost (linear, scaling with volume) vs self-host cost (fixed, determined by GPU provisioning). The crossover point is marked on the chart.
+
+The breakeven analysis tells you:
+
+- Whether API or self-hosting is cheaper **at your current volume**
+- The **breakeven request rate** -- the volume at which the two approaches cost the same
+- How much headroom or savings you get from the cheaper option
+
+Below the breakeven point, API is cheaper (you pay only for what you use). Above it, self-hosting wins (fixed GPU costs are amortized over more requests).
+
+### 16.6 Inference References
+
+- **[R12]** Patel et al., *Splitwise: Efficient generative LLM inference with disaggregated prefill and decode*, Azure LLM Inference Workload Characterization, arXiv:2512.01644. [https://arxiv.org/pdf/2512.01644](https://arxiv.org/pdf/2512.01644)
+- **[R13]** OpenRouter, *State of AI 2025*, 2025. [https://openrouter.ai/state-of-ai](https://openrouter.ai/state-of-ai)
+
+---
+
+## 17. References
 
 - **[R1]** Hoffmann et al., *Training Compute-Optimal Large Language Models* (Chinchilla), arXiv:2203.15556, 2022. [https://arxiv.org/abs/2203.15556](https://arxiv.org/abs/2203.15556)
 - **[R2]** Epoch AI, *Chinchilla scaling: A replication attempt*, Apr. 2024. [https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt](https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt)
@@ -678,3 +742,5 @@ Sensitivity around this estimate:
 - **[R9]** Liang, Percy et al., Stanford CRFM / Marin: *Building open language models*, 2025. [https://crfm.stanford.edu/](https://crfm.stanford.edu/)
 - **[R10]** Touvron et al., *Llama 2: Open Foundation and Fine-Tuned Chat Models*, arXiv:2307.09288, 2023. [https://arxiv.org/abs/2307.09288](https://arxiv.org/abs/2307.09288)
 - **[R11]** Meta AI, *The Llama 3 Herd of Models*, arXiv:2407.21783, 2024. [https://arxiv.org/abs/2407.21783](https://arxiv.org/abs/2407.21783)
+- **[R12]** Patel et al., *Splitwise: Efficient generative LLM inference with disaggregated prefill and decode*, Azure LLM Inference Workload Characterization, arXiv:2512.01644, 2024. [https://arxiv.org/pdf/2512.01644](https://arxiv.org/pdf/2512.01644)
+- **[R13]** OpenRouter, *State of AI 2025*, 2025. [https://openrouter.ai/state-of-ai](https://openrouter.ai/state-of-ai)

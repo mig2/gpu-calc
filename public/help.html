@@ -210,6 +210,15 @@
   <li><a href="#export">Export &amp; Share</a></li>
   <li><a href="#custom-gpus">Custom GPUs</a></li>
   <li><a href="#worked-example">Worked Example (LLM)</a></li>
+  <li><a href="#inference">Inference Calculator -- Build vs Buy</a>
+    <ol style="margin-top: 0.25rem;">
+      <li><a href="#use-case-presets">Use-Case Presets</a></li>
+      <li><a href="#scale-methods">Scale Methods</a></li>
+      <li><a href="#buy-panel">Buy (API) Panel</a></li>
+      <li><a href="#build-panel">Build (Self-host) Panel</a></li>
+      <li><a href="#breakeven">Breakeven Analysis</a></li>
+    </ol>
+  </li>
   <li><a href="#references">References</a></li>
 </ol>
 </nav>
@@ -942,7 +951,86 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
 <hr>
 
 <!-- ============================================================ -->
-<h2 id="references">16. References</h2>
+<h2 id="inference">16. Inference Calculator &mdash; Build vs Buy</h2>
+
+<p>The Inference Calculator helps you decide whether to serve an LLM via a managed API (buy) or self-host on your own GPUs (build). It estimates monthly costs for both approaches and identifies the breakeven point.</p>
+
+<h3 id="use-case-presets">16.1 Use-Case Presets</h3>
+
+<p>Select a use-case preset to auto-fill typical input and output token counts per request. You can always override the values after selecting a preset.</p>
+
+<table>
+  <thead>
+    <tr><th>Use Case</th><th>Input Tokens</th><th>Output Tokens</th><th>Typical Scenario</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Chatbot / Support</td><td>500</td><td>300</td><td>Customer service, short Q&amp;A turns</td></tr>
+    <tr><td>RAG / Q&amp;A</td><td>4,000</td><td>500</td><td>Document retrieval + answer generation</td></tr>
+    <tr><td>Summarization</td><td>10,000</td><td>500</td><td>Legal, financial, or research documents</td></tr>
+    <tr><td>Coding Assistant</td><td>8,000</td><td>2,000</td><td>Code context + generation</td></tr>
+    <tr><td>Agentic Workflow</td><td>16,000</td><td>4,000</td><td>Multi-step tool use, autonomous agents</td></tr>
+    <tr><td>Long-context Analysis</td><td>50,000</td><td>1,000</td><td>Full documents, minimal output</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  These presets are derived from Microsoft Azure inference traces (2023&ndash;2024), OpenRouter&rsquo;s 100T-token usage study, and enterprise production patterns.
+</div>
+
+<h3 id="scale-methods">16.2 Scale Methods</h3>
+
+<p>Three ways to specify your inference volume:</p>
+<ul>
+  <li><strong>By Users</strong> &mdash; Enter user count and requests per user per day. The calculator multiplies them to get total requests/day. Common example: 1,000 users &times; 20 requests = 20,000 req/day.</li>
+  <li><strong>By Token Budget</strong> &mdash; Enter a monthly token budget in millions. The calculator back-solves requests/day from the token budget and per-request token sizes (input + output tokens per request).</li>
+  <li><strong>Direct</strong> &mdash; Enter raw requests/day for power users who already know their exact throughput requirements.</li>
+</ul>
+
+<h3 id="buy-panel">16.3 Buy (API) Panel</h3>
+
+<p>Pick a provider and model. The panel shows:</p>
+<ul>
+  <li><strong>Monthly cost</strong> &mdash; total spend at current volume</li>
+  <li><strong>Cost per request</strong> &mdash; unit economics for a single request</li>
+  <li><strong>Annual projection</strong> &mdash; 12-month cost extrapolation</li>
+  <li><strong>Input/output cost split</strong> &mdash; breakdown showing how much of the cost comes from input tokens vs output tokens</li>
+</ul>
+
+<h3 id="build-panel">16.4 Build (Self-host) Panel</h3>
+
+<p>Pick a model to serve, GPU configuration, and cloud provider. The panel shows:</p>
+<ul>
+  <li><strong>Monthly GPU cost</strong> &mdash; cloud compute spend for the GPU instances</li>
+  <li><strong>Throughput feasibility</strong> &mdash; whether the GPU configuration can handle the target request rate</li>
+  <li><strong>Utilization</strong> &mdash; what fraction of GPU capacity the workload consumes</li>
+  <li><strong>Estimated TTFT</strong> &mdash; approximate time to first token for the configuration</li>
+</ul>
+
+<h3 id="breakeven">16.5 Breakeven Analysis</h3>
+
+<p>A chart showing API cost (linear, scaling with volume) vs self-host cost (fixed, determined by GPU provisioning). The crossover point is marked on the chart.</p>
+
+<p>The breakeven analysis tells you:</p>
+<ul>
+  <li>Whether API or self-hosting is cheaper <strong>at your current volume</strong></li>
+  <li>The <strong>breakeven request rate</strong> &mdash; the volume at which the two approaches cost the same</li>
+  <li>How much headroom or savings you get from the cheaper option</li>
+</ul>
+
+<div class="note">
+  Below the breakeven point, API is cheaper (you pay only for what you use). Above it, self-hosting wins (fixed GPU costs are amortized over more requests).
+</div>
+
+<h3>16.6 Inference References</h3>
+<ul>
+  <li><strong>[R12]</strong> Patel et al., <em>Splitwise: Efficient generative LLM inference with disaggregated prefill and decode</em>, Azure LLM Inference Workload Characterization, arXiv:2512.01644. <a href="https://arxiv.org/pdf/2512.01644">arxiv.org/2512.01644</a></li>
+  <li><strong>[R13]</strong> OpenRouter, <em>State of AI 2025</em>, 2025. <a href="https://openrouter.ai/state-of-ai">openrouter.ai/state-of-ai</a></li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="references">17. References</h2>
 
 <ul>
   <li><strong>[R1]</strong> Hoffmann et al., <em>Training Compute-Optimal Large Language Models</em> (Chinchilla), arXiv:2203.15556, 2022. <a href="https://arxiv.org/abs/2203.15556">arxiv.org/abs/2203.15556</a></li>
@@ -956,12 +1044,14 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
   <li><strong>[R9]</strong> Liang, Percy et al., Stanford CRFM / Marin: <em>Building open language models</em>, 2025. <a href="https://crfm.stanford.edu/">crfm.stanford.edu</a></li>
   <li><strong>[R10]</strong> Touvron et al., <em>Llama 2: Open Foundation and Fine-Tuned Chat Models</em>, arXiv:2307.09288, 2023. <a href="https://arxiv.org/abs/2307.09288">arxiv.org/abs/2307.09288</a></li>
   <li><strong>[R11]</strong> Meta AI, <em>The Llama 3 Herd of Models</em>, arXiv:2407.21783, 2024. <a href="https://arxiv.org/abs/2407.21783">arxiv.org/abs/2407.21783</a></li>
+  <li><strong>[R12]</strong> Patel et al., <em>Splitwise: Efficient generative LLM inference with disaggregated prefill and decode</em>, Azure LLM Inference Workload Characterization, arXiv:2512.01644, 2024. <a href="https://arxiv.org/pdf/2512.01644">arxiv.org/2512.01644</a></li>
+  <li><strong>[R13]</strong> OpenRouter, <em>State of AI 2025</em>, 2025. <a href="https://openrouter.ai/state-of-ai">openrouter.ai/state-of-ai</a></li>
 </ul>
 
 <hr>
 
 <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center;">
-  GPU Training Calculator &mdash; GPU data as of 2026-06-19
+  GPU Training &amp; Inference Calculator &mdash; data as of 2026-06-23
 </p>
 
 </div>
