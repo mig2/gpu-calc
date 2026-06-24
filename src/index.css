@@ -1002,6 +1002,122 @@ input:focus, select:focus {
   padding: 1rem;
 }
 
+/* Use Case Cards */
+.use-case-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+
+.use-case-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  color: var(--text);
+}
+
+.use-case-card:hover {
+  background: var(--surface-hover);
+  border-color: var(--text-muted);
+}
+
+.use-case-card.active {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.use-case-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.use-case-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.use-case-tokens {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Scale Method */
+.scale-method-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 1rem;
+  max-width: 360px;
+}
+
+.scale-method-tabs button {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  background: var(--surface);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.scale-method-tabs button:last-child { border-right: none; }
+.scale-method-tabs button:hover { background: var(--surface-hover); color: var(--text); }
+.scale-method-tabs button.active { background: var(--accent); color: white; }
+
+.scale-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+/* Usage Summary */
+.usage-summary {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.usage-summary-line {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.usage-summary-line strong {
+  color: var(--text);
+}
+
+.technical-details {
+  margin-top: 0.5rem;
+}
+
+.technical-details summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.technical-details summary:hover {
+  color: var(--text);
+}
+
 .inference-data-note {
   font-size: 0.75rem;
   color: var(--text-muted);
@@ -1020,6 +1136,12 @@ input:focus, select:focus {
     grid-template-columns: 1fr;
   }
   .inference-usage-grid {
+    grid-template-columns: 1fr;
+  }
+  .use-case-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .scale-inputs {
     grid-template-columns: 1fr;
   }
 }

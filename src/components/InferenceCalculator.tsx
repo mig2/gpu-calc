@@ -8,22 +8,71 @@ import type { ApiModel, CloudGpuInstance, SelfHostEntry } from '../data/types'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, ReferenceLine } from 'recharts'
 
 type PricingTier = 'onDemand' | 'reserved' | 'spot'
+type ScaleMethod = 'users' | 'budget' | 'direct'
+
+type UseCase = {
+  label: string;
+  inputTokens: number;
+  outputTokens: number;
+  description: string;
+}
+
+const USE_CASES: UseCase[] = [
+  { label: 'Chatbot / Support', inputTokens: 500, outputTokens: 300, description: 'Short conversational turns with system prompt' },
+  { label: 'RAG / Q&A', inputTokens: 4000, outputTokens: 500, description: 'Retrieved document context + query' },
+  { label: 'Summarization', inputTokens: 10000, outputTokens: 500, description: 'Long documents in, concise summaries out' },
+  { label: 'Coding Assistant', inputTokens: 8000, outputTokens: 2000, description: 'Code context + generation' },
+  { label: 'Agentic Workflow', inputTokens: 16000, outputTokens: 4000, description: 'Multi-step tool use, 100s of calls per task' },
+  { label: 'Long-context Analysis', inputTokens: 50000, outputTokens: 1000, description: 'Full documents, minimal output' },
+]
 
 export function InferenceCalculator() {
-  // Usage pattern
-  const [requestsPerDay, setRequestsPerDay] = useState(100000)
-  const [avgInputTokens, setAvgInputTokens] = useState(2000)
-  const [avgOutputTokens, setAvgOutputTokens] = useState(1000)
+  // Use case & scale
+  const [useCaseIdx, setUseCaseIdx] = useState<number | null>(null)
+  const [scaleMethod, setScaleMethod] = useState<ScaleMethod>('users')
+
+  // Scale inputs
+  const [numUsers, setNumUsers] = useState(500)
+  const [reqPerUserPerDay, setReqPerUserPerDay] = useState(20)
+  const [monthlyTokenBudget, setMonthlyTokenBudget] = useState(100) // millions
+
+  // Technical fields (editable, auto-populated by use case)
+  const [requestsPerDay, setRequestsPerDay] = useState(10000)
+  const [avgInputTokens, setAvgInputTokens] = useState(4000)
+  const [avgOutputTokens, setAvgOutputTokens] = useState(500)
 
   // API selection
   const [apiProviderIdx, setApiProviderIdx] = useState(0)
   const [apiModelIdx, setApiModelIdx] = useState(0)
 
   // Self-host selection
-  const [selfHostIdx, setSelfHostIdx] = useState(2) // Llama 3 70B on H100
+  const [selfHostIdx, setSelfHostIdx] = useState(2)
   const [cloudProviderIdx, setCloudProviderIdx] = useState(0)
   const [cloudInstanceIdx, setCloudInstanceIdx] = useState(0)
   const [pricingTier, setPricingTier] = useState<PricingTier>('onDemand')
+
+  // When use case changes, auto-fill token sizes
+  useEffect(() => {
+    if (useCaseIdx !== null) {
+      const uc = USE_CASES[useCaseIdx]
+      setAvgInputTokens(uc.inputTokens)
+      setAvgOutputTokens(uc.outputTokens)
+    }
+  }, [useCaseIdx])
+
+  // When scale method inputs change, derive requests/day
+  useEffect(() => {
+    if (scaleMethod === 'users') {
+      setRequestsPerDay(numUsers * reqPerUserPerDay)
+    } else if (scaleMethod === 'budget') {
+      const tokensPerRequest = avgInputTokens + avgOutputTokens
+      if (tokensPerRequest > 0) {
+        const totalTokensPerMonth = monthlyTokenBudget * 1e6
+        const rpd = Math.round(totalTokensPerMonth / tokensPerRequest / 30)
+        setRequestsPerDay(Math.max(1, rpd))
+      }
+    }
+  }, [scaleMethod, numUsers, reqPerUserPerDay, monthlyTokenBudget, avgInputTokens, avgOutputTokens])
 
   const usage = { requestsPerDay, avgInputTokens, avgOutputTokens }
 
@@ -65,49 +114,120 @@ export function InferenceCalculator() {
     setResults({ usage, apiResult, selfHostResult, breakeven })
   }, [apiResult, selfHostResult, breakeven, usage, setResults])
 
+  const dailyTotalTokens = requestsPerDay * (avgInputTokens + avgOutputTokens)
+
   return (
     <div className="inference-calculator">
-      {/* Usage Pattern */}
+      {/* Step 1: Use Case */}
       <div className="inference-section">
-        <h2>Usage Pattern</h2>
-        <div className="inference-usage-grid">
-          <fieldset>
-            <legend>Requests / Day</legend>
-            <input type="number" min={1} value={requestsPerDay} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setRequestsPerDay(v) }} />
-            <div className="presets">
-              {[10000, 50000, 100000, 500000, 1000000, 5000000].map((n) => (
-                <button key={n} className={requestsPerDay === n ? 'active' : ''} onClick={() => setRequestsPerDay(n)}>
-                  {n >= 1e6 ? `${n / 1e6}M` : `${n / 1000}K`}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Avg Input Tokens</legend>
-            <input type="number" min={1} value={avgInputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setAvgInputTokens(v) }} />
-            <div className="presets">
-              {[500, 1000, 2000, 4000, 8000, 16000].map((n) => (
-                <button key={n} className={avgInputTokens === n ? 'active' : ''} onClick={() => setAvgInputTokens(n)}>
-                  {n >= 1000 ? `${n / 1000}K` : n}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Avg Output Tokens</legend>
-            <input type="number" min={1} value={avgOutputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setAvgOutputTokens(v) }} />
-            <div className="presets">
-              {[200, 500, 1000, 2000, 4000, 8000].map((n) => (
-                <button key={n} className={avgOutputTokens === n ? 'active' : ''} onClick={() => setAvgOutputTokens(n)}>
-                  {n >= 1000 ? `${n / 1000}K` : n}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-          <p className="inference-data-note" style={{ marginTop: '0.5rem' }}>
-            Daily volume: <strong>{((requestsPerDay * avgInputTokens) / 1e6).toFixed(1)}M input tokens</strong> + <strong>{((requestsPerDay * avgOutputTokens) / 1e6).toFixed(1)}M output tokens</strong> = <strong>{((requestsPerDay * (avgInputTokens + avgOutputTokens)) / 1e6).toFixed(1)}M total tokens/day</strong>
-          </p>
+        <h2>1. What are you building?</h2>
+        <div className="use-case-grid">
+          {USE_CASES.map((uc, i) => (
+            <button
+              key={uc.label}
+              className={`use-case-card ${useCaseIdx === i ? 'active' : ''}`}
+              onClick={() => setUseCaseIdx(i)}
+            >
+              <span className="use-case-label">{uc.label}</span>
+              <span className="use-case-desc">{uc.description}</span>
+              <span className="use-case-tokens">{uc.inputTokens >= 1000 ? `${uc.inputTokens / 1000}K` : uc.inputTokens} in / {uc.outputTokens >= 1000 ? `${uc.outputTokens / 1000}K` : uc.outputTokens} out</span>
+            </button>
+          ))}
         </div>
+      </div>
+
+      {/* Step 2: Scale */}
+      <div className="inference-section">
+        <h2>2. How much usage?</h2>
+        <div className="scale-method-tabs">
+          <button className={scaleMethod === 'users' ? 'active' : ''} onClick={() => setScaleMethod('users')}>By Users</button>
+          <button className={scaleMethod === 'budget' ? 'active' : ''} onClick={() => setScaleMethod('budget')}>By Token Budget</button>
+          <button className={scaleMethod === 'direct' ? 'active' : ''} onClick={() => setScaleMethod('direct')}>Direct</button>
+        </div>
+
+        {scaleMethod === 'users' && (
+          <div className="scale-inputs">
+            <fieldset>
+              <legend>Number of Users</legend>
+              <input type="number" min={1} value={numUsers} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setNumUsers(v) }} />
+              <div className="presets">
+                {[100, 500, 1000, 5000, 10000, 50000].map((n) => (
+                  <button key={n} className={numUsers === n ? 'active' : ''} onClick={() => setNumUsers(n)}>
+                    {n >= 1000 ? `${n / 1000}K` : n}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Requests / User / Day</legend>
+              <input type="number" min={1} value={reqPerUserPerDay} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setReqPerUserPerDay(v) }} />
+              <div className="presets">
+                {[5, 10, 20, 50, 100, 500].map((n) => (
+                  <button key={n} className={reqPerUserPerDay === n ? 'active' : ''} onClick={() => setReqPerUserPerDay(n)}>{n}</button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
+
+        {scaleMethod === 'budget' && (
+          <div className="scale-inputs">
+            <fieldset>
+              <legend>Monthly Token Budget (millions)</legend>
+              <input type="number" min={1} value={monthlyTokenBudget} onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) setMonthlyTokenBudget(v) }} />
+              <div className="presets">
+                {[10, 50, 100, 500, 1000, 5000].map((n) => (
+                  <button key={n} className={monthlyTokenBudget === n ? 'active' : ''} onClick={() => setMonthlyTokenBudget(n)}>
+                    {n >= 1000 ? `${n / 1000}B` : `${n}M`}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
+
+        {scaleMethod === 'direct' && (
+          <div className="scale-inputs">
+            <fieldset>
+              <legend>Requests / Day</legend>
+              <input type="number" min={1} value={requestsPerDay} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) setRequestsPerDay(v) }} />
+              <div className="presets">
+                {[10000, 50000, 100000, 500000, 1000000, 5000000].map((n) => (
+                  <button key={n} className={requestsPerDay === n ? 'active' : ''} onClick={() => setRequestsPerDay(n)}>
+                    {n >= 1e6 ? `${n / 1e6}M` : `${n / 1000}K`}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </div>
+        )}
+
+        {/* Derived summary + editable technical fields */}
+        <div className="usage-summary">
+          <div className="usage-summary-line">
+            <strong>{requestsPerDay.toLocaleString()}</strong> requests/day
+            <strong style={{ marginLeft: '1rem' }}>{(dailyTotalTokens / 1e6).toFixed(1)}M</strong> tokens/day
+            <strong style={{ marginLeft: '1rem' }}>{((dailyTotalTokens * 30) / 1e6).toFixed(0)}M</strong> tokens/month
+          </div>
+          <details className="technical-details">
+            <summary>Edit token sizes</summary>
+            <div className="scale-inputs" style={{ marginTop: '0.5rem' }}>
+              <fieldset>
+                <legend>Avg Input Tokens / Request</legend>
+                <input type="number" min={1} value={avgInputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) { setAvgInputTokens(v); setUseCaseIdx(null) } }} />
+              </fieldset>
+              <fieldset>
+                <legend>Avg Output Tokens / Request</legend>
+                <input type="number" min={1} value={avgOutputTokens} onChange={(e) => { const v = parseInt(e.target.value); if (v > 0) { setAvgOutputTokens(v); setUseCaseIdx(null) } }} />
+              </fieldset>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      {/* Step 3: Compare */}
+      <div className="inference-section">
+        <h2>3. Compare</h2>
       </div>
 
       <div className="inference-comparison-grid">
@@ -237,12 +357,12 @@ export function InferenceCalculator() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#2e3346" />
                   <XAxis
                     dataKey="requestsPerDay"
-                    tickFormatter={(v) => v >= 1000 ? `${v / 1000}K` : v}
+                    tickFormatter={(v) => v >= 1e6 ? `${v / 1e6}M` : v >= 1000 ? `${v / 1000}K` : v}
                     label={{ value: 'Requests / Day', position: 'bottom', offset: 0, fill: '#8b90a0', fontSize: 11 }}
                     tick={{ fill: '#8b90a0', fontSize: 11 }}
                   />
                   <YAxis
-                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
+                    tickFormatter={(v) => `$${v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v}`}
                     label={{ value: 'Monthly Cost', angle: -90, position: 'insideLeft', fill: '#8b90a0', fontSize: 11 }}
                     tick={{ fill: '#8b90a0', fontSize: 11 }}
                   />
