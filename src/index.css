@@ -1198,3 +1198,373 @@ input:focus, select:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Classical tabular: "do I need a GPU at all" verdict */
+.gpu-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: calc(var(--radius) / 2);
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  background: var(--bg);
+}
+
+.gpu-verdict strong {
+  font-size: 0.9rem;
+}
+
+.gpu-verdict span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.gpu-verdict-gpu-recommended { border-left-color: var(--accent); }
+.gpu-verdict-gpu-recommended strong { color: var(--accent); }
+.gpu-verdict-cpu-sufficient { border-left-color: var(--success); }
+.gpu-verdict-cpu-sufficient strong { color: var(--success); }
+.gpu-verdict-gpu-likely-slower { border-left-color: var(--warning-border); }
+.gpu-verdict-gpu-likely-slower strong { color: var(--warning-text); }
+
+/* Fine-Tuning Calculator */
+.ft-calculator {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.ft-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.ft-section h2 {
+  font-size: 1.125rem;
+  margin-bottom: 1rem;
+}
+
+.ft-note {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-top: 0.75rem;
+}
+
+.ft-note code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.ft-moe-note {
+  margin-top: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  border-radius: var(--radius);
+  color: var(--warning-text);
+  font-size: 0.8rem;
+}
+
+.ft-preset-basis {
+  display: block;
+  margin-top: 0.375rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.ft-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ft-checkbox input[type="checkbox"] {
+  width: auto;
+}
+
+.ft-finding {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent);
+}
+
+.ft-finding strong {
+  color: var(--text);
+}
+
+/* The matrix */
+.ft-matrix-wrapper {
+  overflow-x: auto;
+}
+
+.ft-matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0.375rem;
+  font-size: 0.8rem;
+}
+
+.ft-matrix th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-align: left;
+  vertical-align: bottom;
+  padding: 0.25rem 0.5rem;
+}
+
+.ft-matrix-corner {
+  width: 10rem;
+}
+
+.ft-matrix-colnote {
+  display: block;
+  font-weight: 400;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.ft-matrix-rowhead {
+  white-space: nowrap;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.ft-matrix-td {
+  padding: 0;
+}
+
+.ft-cell-empty {
+  color: var(--text-muted);
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+/* Each cell leads with GPU count and fit state: that is what varies by method. */
+.ft-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 9.5rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ft-cell:hover {
+  background: var(--surface);
+  border-color: var(--text-muted);
+}
+
+.ft-cell.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ft-cell-fits {
+  border-left-color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ft-cell-sharded {
+  border-left-color: var(--warning-text);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.ft-cell-oom {
+  border-left-color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.ft-cell-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ft-cell-gpus {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ft-cell-oom .ft-cell-gpus {
+  color: var(--text-muted);
+}
+
+.ft-cell-mem {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ft-cell-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.ft-cell-cost-none {
+  color: var(--text-muted);
+  cursor: help;
+}
+
+.ft-fit-badge {
+  padding: 0.0625rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.ft-fit-fits {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--success);
+}
+
+.ft-fit-sharded {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warning-text);
+}
+
+.ft-fit-oom {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.ft-matrix-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.ft-legend-text {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-right: 0.75rem;
+}
+
+/* Selected-cell detail */
+.ft-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.ft-detail-head h2 {
+  margin-bottom: 0;
+}
+
+.ft-fit-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Stacked memory breakdown against the usable-capacity line */
+.ft-memory {
+  margin-bottom: 1.25rem;
+}
+
+.ft-memory-track {
+  position: relative;
+  display: flex;
+  height: 2rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ft-memory-seg {
+  height: 100%;
+  min-width: 1px;
+}
+
+.ft-memory-capacity {
+  position: absolute;
+  top: -0.25rem;
+  bottom: -0.25rem;
+  width: 2px;
+  background: var(--text);
+}
+
+.ft-memory-caption {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.ft-memory-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  list-style: none;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ft-memory-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.ft-memory-legend strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.ft-memory-swatch {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 2px;
+}
+
+.ft-seg-weights { background: #6366f1; }
+.ft-seg-gradients { background: #8b5cf6; }
+.ft-seg-optimizer { background: #ec4899; }
+.ft-seg-activations { background: #f59e0b; }
+.ft-seg-auxiliary { background: #14b8a6; }
+.ft-seg-overhead { background: #4b5563; }

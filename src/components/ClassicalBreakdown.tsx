@@ -1,5 +1,19 @@
 import { useScenarioStore } from '../store/scenario-store'
 import { estimateClassicalTabular } from '../engine/adapters/classical-tabular-adapter'
+import type { ClassicalGpuVerdict } from '../engine/adapters/classical-tabular-adapter'
+
+const VERDICT_LABEL: Record<ClassicalGpuVerdict, string> = {
+  gpu_recommended: 'GPU: yes — 1 GPU',
+  cpu_sufficient: 'GPU: not needed',
+  gpu_likely_slower: 'GPU: no — likely slower',
+}
+
+function formatSeconds(seconds: number): string {
+  if (seconds < 90) return `${seconds.toFixed(0)} seconds`
+  if (seconds < 5400) return `${(seconds / 60).toFixed(1)} minutes`
+  if (seconds < 172_800) return `${(seconds / 3600).toFixed(1)} hours`
+  return `${(seconds / 86_400).toFixed(1)} days`
+}
 
 export function ClassicalBreakdown() {
   const modelFamily = useScenarioStore((s) => s.modelFamily)
@@ -24,6 +38,10 @@ export function ClassicalBreakdown() {
   return (
     <div className="ts-breakdown">
       <h3>Classical Tabular Estimate</h3>
+      <div className={`gpu-verdict gpu-verdict-${result.gpuVerdict.replace(/_/g, '-')}`}>
+        <strong>{VERDICT_LABEL[result.gpuVerdict]}</strong>
+        <span>{result.gpuVerdictReason}</span>
+      </div>
       <dl className="result-details">
         {Object.entries(result.dataBreakdown).map(([key, value]) => (
           <div key={key}>
@@ -31,6 +49,14 @@ export function ClassicalBreakdown() {
             <dd>{value}</dd>
           </div>
         ))}
+        <div>
+          <dt>On CPU</dt>
+          <dd>{formatSeconds(result.cpuAlternativeSeconds)}</dd>
+        </div>
+        <div>
+          <dt>On 1 GPU</dt>
+          <dd>{formatSeconds(result.gpuAlternativeSeconds)}</dd>
+        </div>
         <div>
           <dt>Estimated time</dt>
           <dd>
