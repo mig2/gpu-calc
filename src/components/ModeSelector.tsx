@@ -19,6 +19,14 @@ export function ModeSelector({ mode, setMode }: { mode: AppMode; setMode: (m: Ap
       >
         Inference Calculator
       </button>
+      <button
+        role="tab"
+        aria-selected={mode === 'finetune'}
+        className={`mode-tab ${mode === 'finetune' ? 'active' : ''}`}
+        onClick={() => setMode('finetune')}
+      >
+        Fine-Tuning Calculator
+      </button>
     </div>
   )
 }

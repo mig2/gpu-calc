@@ -21,11 +21,17 @@ import { ClassicalBreakdown } from './ClassicalBreakdown'
 import { ModeSelector } from './ModeSelector'
 import { InferenceCalculator } from './InferenceCalculator'
 import { InferenceExportControls } from './InferenceExportControls'
+import { FineTuneCalculator } from './FineTuneCalculator'
 import { decodeScenarioFromHash } from '../engine/export'
 import { useScenarioStore } from '../store/scenario-store'
 import type { ModelFamily } from '../engine/types'
 
-export type AppMode = 'training' | 'inference'
+export type AppMode = 'training' | 'inference' | 'finetune'
+
+const MODE_SUBTITLES: Record<Exclude<AppMode, 'training'>, string> = {
+  inference: 'Compare API costs vs self-hosting for LLM inference — buy vs build analysis',
+  finetune: 'Estimate accelerator requirements for fine-tuning open-weight models',
+}
 
 const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
   llm: {
@@ -49,7 +55,7 @@ const FAMILY_TITLES: Record<string, { title: string; subtitle: string }> = {
 export default function App() {
   const [mode, setMode] = useState<AppMode>('training')
   const modelFamily = useScenarioStore((s) => s.modelFamily)
-  const { title, subtitle } = FAMILY_TITLES[modelFamily] ?? FAMILY_TITLES.llm
+  const { subtitle } = FAMILY_TITLES[modelFamily] ?? FAMILY_TITLES.llm
 
   useEffect(() => {
     const decoded = decodeScenarioFromHash(window.location.hash)
@@ -68,7 +74,7 @@ export default function App() {
       <header className="app-header">
         <h1>GPU Calculator</h1>
         <p className="subtitle">
-          {mode === 'training' ? subtitle : 'Compare API costs vs self-hosting for LLM inference — buy vs build analysis'}
+          {mode === 'training' ? subtitle : MODE_SUBTITLES[mode]}
         </p>
         <div className="header-actions">
           {mode === 'training' && <ExportControls />}
@@ -108,6 +114,11 @@ export default function App() {
       {mode === 'inference' && (
         <main>
           <InferenceCalculator />
+        </main>
+      )}
+      {mode === 'finetune' && (
+        <main>
+          <FineTuneCalculator />
         </main>
       )}
     </div>
