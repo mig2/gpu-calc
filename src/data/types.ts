@@ -63,6 +63,16 @@ export type ApiPricingData = {
   providers: ApiProvider[];
 };
 
+/**
+ * Where a row's three hourly rates came from.
+ *
+ * `vendor` means the numbers were read from the provider's own pricing page or
+ * public pricing API. `aggregator` means they came from a third party because
+ * the provider does not publish a fetchable rate — those rows are the ones to
+ * distrust first, and the ones a refresh should re-check.
+ */
+export type CloudPriceSourceQuality = 'vendor' | 'aggregator';
+
 export type CloudGpuInstance = {
   instance: string;
   gpu: string;
@@ -70,6 +80,30 @@ export type CloudGpuInstance = {
   onDemandPerHr: number;
   reservedPerHr: number | null;
   spotPerHr: number | null;
+  /** Page or API the rates were read from, so a reader can re-check them. */
+  sourceUrl?: string;
+  /**
+   * Whether that source was the provider itself. Always one of
+   * `CloudPriceSourceQuality`, but typed `string` because TypeScript widens
+   * string literals when importing the JSON and `InferenceCalculator` assigns
+   * the imported row straight to this type. Narrow with `CloudPriceSourceQuality`
+   * at the point of use.
+   */
+  sourceQuality?: string;
+  /**
+   * Region the rates apply to. GPU pricing varies materially by region, so a
+   * rate without one is ambiguous. Providers that publish a single rate across
+   * regions say so here rather than naming a region they do not price by.
+   */
+  region?: string;
+  /** ISO date (YYYY-MM-DD) the rates were read from the source. */
+  pricedOn?: string;
+  /**
+   * Anything needed to not misread the three rates — a rate that is a market
+   * price rather than a quote, a tier that exists but is unpublished, a SKU
+   * that cannot actually be bought on demand.
+   */
+  note?: string;
 };
 
 export type CloudGpuProvider = {
@@ -79,6 +113,8 @@ export type CloudGpuProvider = {
 
 export type CloudGpuPricingData = {
   lastUpdated: string;
+  /** How the data was sourced, which region each provider was priced in. */
+  note?: string;
   providers: CloudGpuProvider[];
 };
 
