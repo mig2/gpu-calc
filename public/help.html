@@ -1143,11 +1143,11 @@ estimated_time = 2.0e14 / 1.5e9 = 133,333 sec = 37.0 hours = 1.54 days</code></p
 
 <div class="note">
   <strong>Who it&rsquo;s for:</strong> Engineering and product teams deciding between API providers and self-hosted inference, or estimating serving costs at a given request volume.<br>
-  <strong>Key concept:</strong> API cost scales linearly with volume; self-host cost is fixed by GPU provisioning &mdash; the crossover is the breakeven point.
+  <strong>Key concept:</strong> API cost scales linearly with volume, and so does self-host cost once replicas are sized to the offered load &mdash; which makes <strong>utilization</strong>, not volume, the variable that decides build vs buy.
 </div>
 
 <div class="warning-note">
-  <strong>Pricing data is stale &mdash; check the dates.</strong> The three data files behind this pane &mdash; <code>api-pricing.json</code>, <code>cloud-gpu-pricing.json</code> and <code>self-host-throughput.json</code> &mdash; all carry <code>lastUpdated: 2026-06-01</code>. API token prices and cloud GPU rates move faster than that, usually downward. Treat every dollar figure here as <strong>indicative of relative shape</strong>, not as a quote: the breakeven <em>mechanism</em> holds, the absolute numbers do not. The last-updated date is shown in the pane. Verify current prices with your provider before committing, and note that the Fine-Tuning pane&rsquo;s costs read from the same cloud GPU file.
+  <strong>Pricing data was refreshed on 2026-10-14 &mdash; and still goes stale fast.</strong> The three data files behind this pane &mdash; <code>api-pricing.json</code>, <code>cloud-gpu-pricing.json</code> and <code>self-host-throughput.json</code> &mdash; all carry <code>lastUpdated: 2026-10-14</code>, and every API and cloud GPU rate in the first two was re-read from the provider on that date (see <em>Pricing Data Provenance</em> below). That does not make them durable. API token prices move every few weeks, whole model families turn over in months, and GPU rates moved 17&ndash;21% at some providers during 2026 alone. Nor is an un-refreshed figure a small error: this refresh corrected one AWS row by 79%. Treat every dollar figure here as <strong>indicative of relative shape</strong>, not as a quote: the breakeven <em>mechanism</em> holds, the absolute numbers decay. The last-updated date is shown in the pane. Verify current prices with your provider before committing, and note that the Fine-Tuning pane&rsquo;s costs read from the same cloud GPU file.
 </div>
 
 <hr>
@@ -1165,6 +1165,29 @@ estimated_time = 2.0e14 / 1.5e9 = 133,333 sec = 37.0 hours = 1.54 days</code></p
 annual  = 12 * monthly        (exactly equal to daily * 365)</code></pre>
 
 <p>Under the previous flat-30 convention, <code>12 &times; monthly</code> came to 360 days and quietly understated the annual figure by 1.4%. Every monthly cost in this pane &mdash; API spend and self-hosted GPU spend alike &mdash; uses 30.4167 days, and the breakeven calculation divides back by the same constant, so the two sides of the comparison stay on one calendar.</p>
+
+<h4>Pricing Data Provenance</h4>
+
+<p>Both pricing files were re-researched on <strong>2026-10-14</strong> under one rule: every rate comes from the provider&rsquo;s own page or public pricing API, or it is marked <code>aggregator</code>, or it is omitted.</p>
+
+<table>
+  <thead>
+    <tr><th>File</th><th>Rows</th><th>Providers</th><th>Vendor-sourced</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>api-pricing.json</code></td><td>38 models</td><td>8 &mdash; Anthropic, OpenAI, Google, Mistral, DeepSeek, Together, Fireworks, DeepInfra</td><td>38 / 38</td></tr>
+    <tr><td><code>cloud-gpu-pricing.json</code></td><td>32 instances</td><td>10 &mdash; AWS, GCP, Azure, Lambda, CoreWeave, RunPod, Together, Nebius, Crusoe, Oracle</td><td>29 / 32</td></tr>
+  </tbody>
+</table>
+
+<ul>
+  <li><strong>Every row names its source.</strong> Each API model and each GPU instance carries a <code>sourceUrl</code> &mdash; the exact page or API endpoint the rate was read from &mdash; and a <code>sourceQuality</code> of either <code>vendor</code> or <code>aggregator</code>. That distinction is worth carrying in the data because aggregator figures have been wrong by ~79% in earlier passes of this project.</li>
+  <li><strong>The three <code>aggregator</code> rows are all GCP.</strong> Google renders its GPU pricing tables client-side and its Cloud Billing Catalog API requires a key, so no GCP rate could be read from a Google page in this pass. Those three rows are the only ones not vendor-verified.</li>
+  <li><strong>Cloud coverage</strong> runs from A100 and H100 through H200, GH200, B200, B300, GB200 NVL72 and GB300 NVL72, plus AMD MI300X and MI355X. AMD MI325X is deliberately absent: no per-hour rate for it was found at any of the ten providers surveyed.</li>
+  <li><strong>Rows now carry <code>region</code>.</strong> They previously carried none, which made every rate ambiguous, because GPU pricing varies materially by region. Reference regions are AWS <code>us-east-1</code>, GCP <code>us-central1</code>, Azure <code>eastus</code> (two shapes Azure does not offer there are priced in <code>eastus2</code>), Oracle <code>us-ashburn-1</code>, and CoreWeave&rsquo;s US tab. Lambda, RunPod, Together, Nebius and Crusoe publish a single rate per plan with no regional table, and each row says so rather than naming a region the vendor does not price by.</li>
+  <li><strong><code>reserved</code> and <code>spot</code> are null rather than derived.</strong> Where a vendor advertises &ldquo;up to 60% off&rdquo; or &ldquo;from $0.79/GPU-hour&rdquo; instead of a rate, the field stays empty and the reason is recorded in the row&rsquo;s <code>note</code> &mdash; a number computed from a marketing percentage and presented as a quote is false precision. When the selected tier is null for a row the calculator falls back to that row&rsquo;s on-demand rate, so switching to <strong>Reserved</strong> or <strong>Spot</strong> does not always change the number.</li>
+  <li><strong>One correction worth stating in full.</strong> The AWS <code>p5.48xlarge</code> row was stored at <strong>$98.32/hr</strong>. AWS&rsquo;s own price feed gives <strong>$55.04</strong> &mdash; the stored figure was 79% too high. That was verified against <code>b0.p.awsstatic.com/pricing/2.0/meteredUnitMaps/ec2</code> rather than taken on trust, and all four P-family rows then matched to the cent. Every self-host dollar figure derived from that row before the refresh was close to double what AWS charges.</li>
+</ul>
 
 <hr>
 
@@ -1216,36 +1239,149 @@ annual  = 12 * monthly        (exactly equal to daily * 365)</code></pre>
   <li><strong>Input/output cost split</strong> &mdash; breakdown showing how much of the cost comes from input tokens vs output tokens</li>
 </ul>
 
+<h4>Prompt-Cache Pricing (in the data, not yet in the cost)</h4>
+
+<p>Every one of the 38 catalogued API models carries two cache fields alongside its base rates:</p>
+
+<table>
+  <thead>
+    <tr><th>Field</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>cacheReadPer1M</code></td><td>$ per 1M cached-input (&ldquo;cache hit&rdquo;) tokens</td></tr>
+    <tr><td><code>cacheWritePer1M</code></td><td>$ per 1M tokens to write a prefix into the cache</td></tr>
+  </tbody>
+</table>
+
+<p>This matters more than a pair of optional fields suggests:</p>
+<ul>
+  <li>Cache reads are priced at roughly <strong>2.5&ndash;10% of base input</strong> on most rows &mdash; a 10&times; to 40&times; discount on any prefix the provider has already seen. A handful of open-weight hosts charge more, up to about half of base input.</li>
+  <li>OpenRouter reports that <strong>more than 85% of agentic tokens are cached prompt reads</strong>. On an agentic workload, pricing every input token at the base rate overstates API cost by roughly <strong>34% end-to-end</strong>.</li>
+  <li><code>cacheWritePer1M</code> is absent where the provider folds the write into base input &mdash; OpenAI, Google, DeepSeek and the open-model hosts all do. Where it is present it is Anthropic&rsquo;s 5-minute-TTL write; Anthropic&rsquo;s 1-hour writes cost 2&times; base input and are not recorded. An absent cache field means &ldquo;this provider does not publish a rate&rdquo;, never &ldquo;cache reads are free&rdquo;.</li>
+</ul>
+
+<div class="warning-note">
+  <strong>Status: the cost engine does not read these fields yet (issue #99).</strong> The Buy panel bills every input token at the full base input rate, cached or not, so on a cache-heavy workload the monthly API figure it shows is an <strong>upper bound</strong> &mdash; for agentic traffic, substantially so. If your prompts have a stable prefix, discount the input share by hand against the model&rsquo;s <code>cacheReadPer1M</code> until #99 lands. The calculator does not discount for caching today.
+</div>
+
 <hr>
 
 <!-- ============================================================ -->
 <h3 id="build-panel">3.5 Build (Self-host) Panel</h3>
 
-<p>Pick a model to serve, GPU configuration, and cloud provider. The panel shows:</p>
+<p>Pick a model to serve, GPU configuration, cloud provider and replica count. The panel shows:</p>
 <ul>
-  <li><strong>Monthly GPU cost</strong> &mdash; cloud compute spend for the GPU instances</li>
-  <li><strong>Throughput feasibility</strong> &mdash; whether the GPU configuration can handle the target request rate</li>
-  <li><strong>Utilization</strong> &mdash; what fraction of GPU capacity the workload consumes</li>
+  <li><strong>Monthly GPU cost</strong> &mdash; cloud compute spend for the GPU instances, across all replicas</li>
+  <li><strong>Replicas</strong> &mdash; how many copies of the model are provisioned, and the total GPU count</li>
+  <li><strong>Capacity</strong> &mdash; output tokens/sec across all provisioned replicas</li>
+  <li><strong>Required throughput</strong> &mdash; output tokens/sec the offered load demands</li>
+  <li><strong>Utilization</strong> &mdash; required throughput as a fraction of total capacity</li>
   <li><strong>Estimated TTFT</strong> &mdash; approximate time to first token for the configuration</li>
+  <li><strong>Calculation trace</strong> &mdash; every intermediate quantity, including the replica arithmetic</li>
 </ul>
+
+<h4>Replicas (auto-sized to the load by default)</h4>
+
+<p>A <strong>replica</strong> is one complete copy of the model being served, on the GPU count its throughput row specifies &mdash; for example gpt-oss 120B at FP4 on 1&times; H100, or Llama 3 70B on 4&times; H100. The replica is the unit that scales:</p>
+
+<pre><code>required_tok_s  = requests/day x avg output tokens / 86,400
+replicasNeeded  = ceil(required_tok_s / per_replica_tok_s)
+total capacity  = per_replica_tok_s x replicas
+total GPUs      = replica GPUs x replicas
+monthly cost    = $/hr x 24 x 30.4167 x instances_per_replica x replicas
+utilization     = required_tok_s / total capacity</code></pre>
+
+<p><code>instances_per_replica = ceil(replica GPUs / instance GPUs)</code> sizes the cloud instance to <strong>hold</strong> one copy of the model. It is a function of model size and instance shape only and says nothing about serving capacity &mdash; that is what <code>replicas</code> is for.</p>
+
+<p><strong>Auto by default, pinnable when you need it.</strong> The Replicas field shows the computed requirement with the <strong>Auto</strong> button active, and cost, GPU count and capacity all follow the offered load. Type a number to pin it, which is how you model deliberate under- or over-provisioning; click <strong>Auto</strong> to hand control back. While pinned, the note under the field reads <code>Pinned to N; load needs M</code>. Utilization is always measured against <strong>total</strong> capacity across all provisioned replicas, so adding replicas lowers it.</p>
+
+<p>Three warnings come out of this logic:</p>
+
+<table>
+  <thead>
+    <tr><th>Condition</th><th>What the panel says</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Auto-sizing chose more than one replica</td><td>States the replica count, the total GPUs, the required tok/s, and what one replica serves</td></tr>
+    <tr><td>Pinned below <code>replicasNeeded</code></td><td>Under-provisioned: required vs available tok/s, and the replica and GPU count that would serve the load</td></tr>
+    <tr><td>Utilization below 10%</td><td>The hardware is significantly over-provisioned for this usage level</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>Mind the instance granularity.</strong> The reported GPU count is the GPUs the <em>model</em> needs (<code>replica GPUs &times; replicas</code>), while the cost bills whole <em>instances</em> (<code>instances_per_replica &times; replicas</code>). A 1-GPU replica placed on an 8-GPU instance rents eight GPUs and uses one. Either pick an instance whose GPU count divides into the replica, or read the monthly figure as a rental bill rather than as a per-GPU cost.
+</div>
+
+<p><strong>What changed, and why your numbers moved.</strong> Replica sizing is new (issue #141). Before it, the only quantity derived was <code>instancesNeeded = ceil(gpuCount / instance.gpuCount)</code> &mdash; the instances needed to <em>fit the model</em>, not to <em>serve the load</em> &mdash; so <strong>demand never entered the cost at all</strong>. Self-host cost was identical at 1% and at 2,300% of capacity, and the pane would report &ldquo;cannot serve&rdquo; beside the price of a configuration it already knew could not serve the workload, while advising the user to add GPUs with no control for doing so.</p>
+
+<p>On the default self-host row (gpt-oss 120B at FP4 on 1&times; H100, 997 output tok/s per replica) at <strong>10M requests/day &times; 500 output tokens</strong>, priced on AWS <code>p5.48xlarge</code> on-demand:</p>
+
+<table>
+  <thead>
+    <tr><th></th><th>Before</th><th>Now</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Required throughput</td><td>57,870 tok/s</td><td>57,870 tok/s</td></tr>
+    <tr><td>Replicas / model GPUs</td><td>1 / 1</td><td><strong>59 / 59</strong></td></tr>
+    <tr><td>Capacity</td><td>997 tok/s &mdash; 1.7% of demand</td><td>58,823 tok/s</td></tr>
+    <tr><td>Verdict</td><td>&ldquo;cannot serve&rdquo;</td><td>serves, at <strong>98.4% utilization</strong></td></tr>
+    <tr><td>Monthly cost</td><td>$40,179</td><td><strong>$2.37M</strong></td></tr>
+  </tbody>
+</table>
+
+<p>The cost did not rise because serving got more expensive. It rose because the old figure was the price of a single replica that provably could not do the job. (The decision record for #141 quotes $4.23M and $71,774 for this same scenario; those were computed with the $98.32/hr AWS rate the pricing file carried before the same-day refresh corrected it to $55.04.)</p>
 
 <hr>
 
 <!-- ============================================================ -->
 <h3 id="breakeven">3.6 Breakeven Analysis</h3>
 
-<p>A chart showing API cost (linear, scaling with volume) vs self-host cost (fixed, determined by GPU provisioning). The crossover point is marked on the chart.</p>
+<div class="warning-note">
+  <strong>Read this if you remember a breakeven number from an earlier version &mdash; it no longer means what it used to.</strong> Self-host cost is not fixed any more. Once replicas are sized to the load (<a href="#build-panel">Section 3.5</a>) <em>both</em> sides of the comparison scale with volume, and a single crossover volume stops being generally meaningful: if self-host is cheaper per token it wins at every volume that keeps the replicas busy, and if it is dearer it never wins at all. The variable that actually decides it is <strong>utilization, not volume</strong>.
+</div>
 
-<p>The breakeven analysis tells you:</p>
+<h4>What the engine reports</h4>
+
+<table>
+  <thead>
+    <tr><th>Figure</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>apiCostPerMillionOutputTokens</code></td><td>API monthly cost / output tokens served, per million</td></tr>
+    <tr><td><code>selfHostCostPerMillionOutputTokens</code></td><td>Self-host monthly bill / output tokens served, per million</td></tr>
+    <tr><td><code>selfHostCheaperPerToken</code></td><td>Which side wins on unit cost at this provisioning</td></tr>
+    <tr><td><code>breakevenNote</code></td><td>Plain-language statement of whether the crossover volume applies here</td></tr>
+    <tr><td><code>breakevenRequestsPerDay</code></td><td>The crossover volume &mdash; still reported, see below for when it means something</td></tr>
+    <tr><td><code>monthlySavingsAtCurrentVolume</code></td><td>API cost minus self-host bill at today&rsquo;s volume (negative when API is cheaper)</td></tr>
+  </tbody>
+</table>
+
+<p>Both per-token figures divide <strong>total</strong> monthly cost by <strong>output</strong> tokens only, on each side alike, so they are comparable with each other &mdash; they are not a decomposed per-token output price. Self-host is billed for provisioned capacity whether or not it is used, so the denominator is what you actually serve, never what you could serve.</p>
+
+<h4>Utilization is the decision</h4>
+
+<p>Published break-even utilization against API pricing is around <strong>60%</strong>. Below that you are paying for idle capacity, and self-hosting loses on unit cost even where the hardware looks cheaper. For scale: on identical H100 hardware serving the same model, measured effective cost spans <strong>$0.21 to $15.25 per million output tokens</strong> &mdash; a spread of up to 24&times; across enterprise load levels, driven purely by concurrency &mdash; and average utilization in self-hosted inference clusters is reported at <strong>22%</strong>.</p>
+
+<p>So <code>breakevenNote</code> says one of three things:</p>
 <ul>
-  <li>Whether API or self-hosting is cheaper <strong>at your current volume</strong></li>
-  <li>The <strong>breakeven request rate</strong> &mdash; the volume at which the two approaches cost the same</li>
-  <li>How much headroom or savings you get from the cheaper option</li>
+  <li><strong>More than one replica</strong> &mdash; cost scales with volume on both sides, so a single crossover volume is not meaningful. Compare cost per token and treat utilization as the deciding variable.</li>
+  <li><strong>One replica, below 60% utilization</strong> &mdash; this configuration pays for idle capacity.</li>
+  <li><strong>One replica, 60% or more</strong> &mdash; the crossover volume is meaningful while a single replica suffices.</li>
 </ul>
 
-<div class="note">
-  Below the breakeven point, API is cheaper (you pay only for what you use). Above it, self-hosting wins (fixed GPU costs are amortized over more requests).
+<h4>The chart</h4>
+
+<p>API cost is a straight line in volume. The self-host line is now a <strong>staircase</strong>, not a flat line: each step is the volume at which the offered load outgrows the replicas you have and another one is required. The flat line was the bug behind #141 and #101 &mdash; it drew self-hosting as free scaling. The curve is sampled at fixed volumes (0, 100, 500, 1K, 2K, 5K, 10K, 20K, 50K, 100K req/day), so step edges are approximate and volumes above 100K req/day are not plotted.</p>
+
+<p>Two reference lines are drawn: <strong>Breakeven</strong> (the crossover volume, shown only when it is finite) and <strong>Current</strong> (your volume).</p>
+
+<div class="warning-note">
+  <strong>Status.</strong> The pane&rsquo;s headline sentence, and the CSV and Markdown exports, still quote <code>breakevenRequestsPerDay</code> and the monthly saving at current volume. The two per-token figures, <code>selfHostCheaperPerToken</code> and <code>breakevenNote</code> are carried in the engine result and in the <strong>JSON</strong> export, but are not yet rendered in the pane. Until they are, read the unit-cost comparison from the JSON export, and read utilization off the Build panel.
 </div>
+
+<h4>What this comparison still leaves out</h4>
+
+<p>It is raw GPU rental against list API pricing. Engineering time, ops overhead, networking, redundancy and peak-to-average headroom are all excluded, and published figures put all-in self-host TCO at <strong>3&ndash;5&times; raw rental</strong> (#100) &mdash; which makes any crossover volume this pane reports optimistic for self-hosting by a similar factor. Per-replica throughput is also a constant per hardware row, where in reality it varies with concurrency and SLO (#95), and API cost ignores prompt caching (#99, <a href="#buy-panel">Section 3.4</a>).</p>
 
 <hr>
 

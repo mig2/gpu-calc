@@ -1,24 +1,43 @@
-# GPU Training Calculator
+# GPU Calculator
 
-Estimate accelerator requirements for training across four model families: **LLMs**, **time-series foundation models**, **tabular foundation models**, and **classical tabular (GBDT)**.
+Three calculators for accelerator planning:
+
+| Mode | Question it answers | Binding constraint |
+|---|---|---|
+| **Training** | How many GPUs to pretrain model X by date Y? | Compute × deadline |
+| **Inference** | API or self-host, and what does serving cost? | Bandwidth, then KV capacity |
+| **Fine-Tuning** | Can I fine-tune model Y with method Z, and on what? | Memory capacity |
+
+Training covers four model families: **LLMs**, **time-series foundation models**, **tabular foundation models**, and **classical tabular (GBDT)**.
+
+Each pane answers a structurally different question, which is why they are separate rather than variations on one form. In pretraining the memory floor is roughly 470× slacker than the compute bound and never binds; in fine-tuning it *is* the question. See [`docs/research/README.md`](docs/research/README.md) for the cross-pane comparison.
 
 ## Features
 
-- **Model family tabs** -- switch between LLM, time-series, tabular foundation, and classical tabular modes
-- **Quick Estimate** -- enter model size + training window, get GPU count instantly
-- **Advanced Estimate** -- explicit control over MFU, availability, overhead, precision, and tokens-per-parameter
-- **GPU Comparison** -- multi-select H100/H200/B200/GB200 with side-by-side table and bar chart
-- **Sensitivity Matrix** -- MFU x training-window grid showing how GPU count varies
-- **Reverse Solve** -- find training time from a GPU budget, or max model size from a GPU budget
-- **Calibration** -- back-solve achieved MFU from a known training run
-- **Memory Feasibility** -- detect when model state memory exceeds compute requirements
-- **Time-series mode** -- patch-based tokenization (channel-compressed / channel-expanded), windowed series geometry
-- **Tabular foundation mode** -- row / cell / axial tokenization, dense attention warnings, test-time compute multiplier
-- **Classical tabular mode** -- work-unit model for LightGBM, XGBoost, CatBoost, Random Forest with empirical throughput calibration
-- **Confidence labels** -- high / medium / medium-low / low estimates based on model family and settings
-- **Custom GPUs** -- define custom SKUs with your own peak FLOP/s, memory, and MFU
-- **Export & Share** -- JSON, CSV, Markdown export; URL hash encoding for shareable links
-- **Formula Trace** -- every result includes a step-by-step calculation audit trail
+### Training
+- **Model family tabs** -- LLM, time-series, tabular foundation, classical tabular
+- **Quick Estimate** -- model size + training window, GPU count instantly
+- **Advanced Estimate** -- explicit MFU, availability, overhead, precision, tokens-per-parameter
+- **15 accelerator SKUs** -- NVIDIA H100 through GB300, AMD MI300X/MI355X/MI450, Google TPU v6e/v7, AWS Trainium2/3, Intel Gaudi 3; all dense figures
+- **Precision-relative MFU** -- BF16 / FP8 / FP4 scaled by measured end-to-end gain, not peak ratio
+- **Sensitivity Matrix**, **IsoFLOP Explorer**, **Reverse Solve**, **Calibration**
+- **27 reference runs** -- GPT-3 through DeepSeek-V4, 12 of them MoE, 13 with published GPU-hours
+
+### Inference
+- **Buy vs build** -- 38 API models across 7 providers against 32 self-host configurations across 10 clouds
+- **Replica sizing** -- capacity and cost scale with the load, auto-sized or pinned
+- **Breakeven analysis** -- cost per million tokens on both sides, since with both scaling the deciding variable is utilization rather than volume
+- **Use-case presets** -- chatbot, RAG, summarization, coding, agentic, long-context
+
+### Fine-Tuning
+- **Method × GPU matrix** -- full / LoRA / QLoRA / DoRA / DPO / ORPO / GRPO / PPO against selected accelerators
+- **Memory feasibility** -- fits / sharded / OOM per cell, with a component breakdown
+- **30-model catalog** -- architecture dimensions from published configs, MoE total-vs-active throughout
+- **RL post-training** -- rollout-dominated cost model with a calibration input
+
+### Throughout
+- **Confidence labels** -- high / medium / medium-low / low, per quantity
+- **Custom GPUs**, **Export & Share** (JSON/CSV/Markdown + URL hash), **Formula Trace** on every result
 
 ## Tech Stack
 
@@ -45,10 +64,12 @@ npm run dev        # dev server at http://localhost:5173
 ### Test and Build
 
 ```bash
-npx vitest run     # run tests
-npx tsc --noEmit   # type check
-npm run build      # production build to dist/
+npm test           # run tests (vitest)
+npm run typecheck  # tsc --noEmit
+npm run build      # tsc -b && vite build, to dist/
 ```
+
+`npm run build` is stricter than `npm run typecheck` -- it applies the project-references config, including `noUnusedLocals`. Run it before pushing; a green typecheck does not imply a green build.
 
 ## Architecture
 
@@ -62,13 +83,24 @@ src/
       classical-tabular-adapter.ts  Work-unit throughput model (GBDT)
     reverse-solve.ts Solve for time or model size from GPU budget
     calibration.ts   Back-solve MFU from known run
-    gpu-data.ts      GPU SKU table (H100/H200/B200/GB200)
+    finetune-calculator.ts  Fine-tuning memory + compute model
+    rl-calculator.ts        GRPO/PPO rollout model (decode roofline)
+    inference-calculator.ts API vs self-host economics
+    hardware-estimator.ts   Shared: sustained throughput, precision/MoE MFU factors
+    gpu-data.ts      15 accelerator SKUs, dense figures with per-row sources
     export.ts        JSON/CSV/Markdown export + URL hash encoding
     types.ts         All domain types (ModelFamily, Scenario union, adapters)
   store/
     scenario-store.ts  Zustand store -- single source of truth
+  data/              Curated JSON + types
+    finetune-models.json     30-model architecture catalog
+    api-pricing.json         38 API models, vendor-sourced
+    cloud-gpu-pricing.json   32 cloud GPU instances, vendor-sourced
+    self-host-throughput.json  Serving fixtures
   components/        React components -- read from store, call engine
-    App.tsx            Layout shell + model family tabs
+    App.tsx            Layout shell + mode and model family tabs
+    FineTuneCalculator.tsx   Method x GPU matrix + feasibility detail
+    InferenceCalculator.tsx  Buy vs build comparison
     ScenarioForm.tsx   Model size, window, TPP, mode, precision
     GpuSelector.tsx    Multi-select GPU checkboxes
     AdvancedAssumptions.tsx  MFU, availability, overhead sliders
@@ -84,10 +116,20 @@ The engine layer is pure math with no UI dependencies. Each model family has a d
 
 ## Help & Documentation
 
-Open the in-app help link or see [public/help.html](public/help.html) for a comprehensive user guide covering all modes, formulas, GPU specs, and worked examples.
+- **[public/help.html](public/help.html)** -- the in-app user guide: every mode, formula, GPU spec, warning and worked example. Linked from the app header.
+- **[docs/research/](docs/research/README.md)** -- the evidence layer. Calibration anchors, back-solved defaults, regression targets and per-quantity confidence ratings for each pane, each with a discrepancy table cited to `file:line`.
+- **[docs/decisions/](docs/decisions/)** -- design decisions and their rationale, including corrections where validation overturned an earlier premise.
+
+`public/help.md` and `public/help.html` are maintained **by hand in parallel** -- there is no generator. Any documentation change must land in both.
 
 ## References
 
 - Hoffmann et al., [Training Compute-Optimal Large Language Models (Chinchilla)](https://arxiv.org/abs/2203.15556), 2022
 - Sardana et al., [Beyond Chinchilla-Optimal: Accounting for Inference](https://arxiv.org/abs/2401.00448), 2024
+- Epoch AI, [Chinchilla scaling: A replication attempt](https://epoch.ai/publications/chinchilla-scaling-a-replication-attempt), 2024
+- Muennighoff et al., [Scaling Data-Constrained Language Models](https://arxiv.org/abs/2305.16264), JMLR 2025
+- Dettmers et al., [QLoRA: Efficient Finetuning of Quantized LLMs](https://arxiv.org/abs/2305.14314), 2023
+- Korthikanti et al., [Reducing Activation Recomputation in Large Transformer Models](https://proceedings.mlsys.org/paper_files/paper/2023/file/80083951326cf5b35e5100260d64ed81-Paper-mlsys2023.pdf), MLSys 2023
 - NVIDIA [H100](https://www.nvidia.com/en-us/data-center/h100/), [H200](https://www.nvidia.com/en-us/data-center/h200/), [HGX B200](https://www.nvidia.com/en-us/data-center/hgx/), [GB200 NVL72](https://www.nvidia.com/en-us/data-center/gb200-nvl72/) specs
+
+Per-figure sourcing lives in [`docs/research/`](docs/research/README.md); every data row in `src/data/` carries its own `sourceUrl`.
