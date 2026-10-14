@@ -55,8 +55,9 @@ function buildLlmWarnings(scenario: LlmScenario, N: number): string[] {
   if (scenario.trainingMode !== 'FULL_PRETRAINING') {
     warnings.push('The full-pretraining formula (6ND) may overestimate compute for this training mode. Task-specific formulas are recommended.');
   }
-  if (scenario.precision === 'FP8_DENSE') {
-    warnings.push('FP8 training is experimental. End-to-end FP8 recipes may not deliver the simple peak-based estimate shown here.');
+  if (scenario.precision === 'FP8_DENSE' || scenario.precision === 'FP4_DENSE') {
+    const label = scenario.precision === 'FP4_DENSE' ? 'FP4' : 'FP8';
+    warnings.push(`${label} training is experimental. End-to-end ${label} recipes may not deliver the simple peak-based estimate shown here.`);
   }
   return warnings;
 }
