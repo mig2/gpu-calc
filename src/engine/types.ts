@@ -1,4 +1,4 @@
-export type Precision = 'BF16_DENSE' | 'FP8_DENSE';
+export type Precision = 'BF16_DENSE' | 'FP8_DENSE' | 'FP4_DENSE';
 
 export type TrainingMode =
   | 'FULL_PRETRAINING'
@@ -13,8 +13,11 @@ export type GpuSku = {
   label: string;
   bf16DenseFlops: number;   // FLOP/s per GPU (dense, not sparse)
   fp8DenseFlops?: number;   // FLOP/s per GPU
+  fp4DenseFlops?: number;   // FLOP/s per GPU (dense NVFP4/MXFP4)
   memoryGb: number;
   bandwidthTbps?: number;
+  tdpWatts?: number;        // board power draw
+  scaleUpGbps?: number;     // per-GPU scale-up fabric bandwidth (NVLink / Infinity Fabric / ICI)
   defaultMfu: number;       // 0-1 fraction
   notes?: string;
 };

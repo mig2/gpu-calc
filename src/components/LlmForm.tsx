@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useScenarioStore } from '../store/scenario-store'
-import type { TrainingMode } from '../engine/types'
+import type { Precision, TrainingMode } from '../engine/types'
 import { Tooltip } from './Tooltip'
 
 const MODEL_PRESETS = [
@@ -239,17 +239,18 @@ export function LlmForm() {
 
       <fieldset>
         <legend>
-          <Tooltip text="Numerical precision for training. BF16 is standard. FP8 is experimental and may not deliver theoretical peak.">
+          <Tooltip text="Numerical precision for training. BF16 is standard. FP8 and FP4 swap in a lower-precision peak but are penalised by an MFU factor (FP8 0.70x, FP4 0.50x) because real recipes quantize only transformer-block linears.">
             Precision
           </Tooltip>
         </legend>
         <select
           value={scenario.precision}
-          onChange={(e) => setPrecision(e.target.value as 'BF16_DENSE' | 'FP8_DENSE')}
+          onChange={(e) => setPrecision(e.target.value as Precision)}
           aria-label="Precision"
         >
           <option value="BF16_DENSE">BF16 Dense</option>
           <option value="FP8_DENSE">FP8 Dense (experimental)</option>
+          <option value="FP4_DENSE">FP4 Dense (Blackwell/MI355X only)</option>
         </select>
       </fieldset>
     </>

@@ -1,4 +1,5 @@
 import type { GpuSku, Precision } from './types';
+import { getPeakFlops } from './hardware-estimator';
 
 export type CalibrationInput = {
   modelParameters: number;
@@ -36,10 +37,7 @@ export function calibrateMfu(input: CalibrationInput): CalibrationResult {
   const seconds = input.wallClockDays * 86_400;
   const achievedSustained = totalFlops / (input.gpuCount * seconds);
 
-  const peak =
-    input.precision === 'BF16_DENSE'
-      ? input.gpu.bf16DenseFlops
-      : (input.gpu.fp8DenseFlops ?? input.gpu.bf16DenseFlops);
+  const peak = getPeakFlops(input.gpu, input.precision);
 
   // sustained = peak * MFU * availability
   // MFU = sustained / (peak * availability)

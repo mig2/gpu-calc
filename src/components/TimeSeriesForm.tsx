@@ -265,7 +265,7 @@ export function TimeSeriesForm() {
 
       <fieldset>
         <legend>
-          <Tooltip text="Numerical precision for training. BF16 is standard. FP8 is experimental.">
+          <Tooltip text="Numerical precision for training. BF16 is standard. FP8 and FP4 apply an MFU penalty (0.70x, 0.50x) rather than the full peak-ratio speedup.">
             Precision
           </Tooltip>
         </legend>
@@ -276,6 +276,7 @@ export function TimeSeriesForm() {
         >
           <option value="BF16_DENSE">BF16 Dense</option>
           <option value="FP8_DENSE">FP8 Dense (experimental)</option>
+          <option value="FP4_DENSE">FP4 Dense (Blackwell/MI355X only)</option>
         </select>
       </fieldset>
     </>

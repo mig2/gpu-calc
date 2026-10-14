@@ -166,6 +166,7 @@ function MfuCalibration() {
         <select value={precision} onChange={(e) => setPrecision(e.target.value as Precision)}>
           <option value="BF16_DENSE">BF16 Dense</option>
           <option value="FP8_DENSE">FP8 Dense</option>
+          <option value="FP4_DENSE">FP4 Dense (Blackwell/MI355X only)</option>
         </select>
       </fieldset>
 

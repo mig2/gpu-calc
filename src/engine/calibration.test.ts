@@ -83,4 +83,37 @@ describe('calibrateMfu', () => {
     expect(result.achievedMfu).toBeLessThanOrEqual(0.45)
     expect(result.isReasonable).toBe(true)
   })
+
+  it('calibrates against the FP4 peak when FP4 is selected', () => {
+    const b200 = getGpuById('b200-sxm')!
+    const common = {
+      modelParameters: 70e9,
+      tokensTrainedOn: 1.4e12,
+      wallClockDays: 30,
+      gpuCount: 200,
+      gpu: b200,
+      overheadFactor: 1.10,
+      availability: 0.90,
+    }
+    const bf16 = calibrateMfu({ ...common, precision: 'BF16_DENSE' })
+    const fp4 = calibrateMfu({ ...common, precision: 'FP4_DENSE' })
+    // Same wall clock against a 4x larger peak (2.25 -> 9.0 PF) is 1/4 the MFU.
+    expect(fp4.achievedMfu).toBeCloseTo(bf16.achievedMfu / 4, 6)
+  })
+
+  it('falls back to the FP8 peak for FP4 on a GPU with no FP4 rate', () => {
+    const h100 = getGpuById('h100-sxm')!
+    const common = {
+      modelParameters: 70e9,
+      tokensTrainedOn: 1.4e12,
+      wallClockDays: 30,
+      gpuCount: 400,
+      gpu: h100,
+      overheadFactor: 1.10,
+      availability: 0.90,
+    }
+    const fp8 = calibrateMfu({ ...common, precision: 'FP8_DENSE' })
+    const fp4 = calibrateMfu({ ...common, precision: 'FP4_DENSE' })
+    expect(fp4.achievedMfu).toBeCloseTo(fp8.achievedMfu, 10)
+  })
 })

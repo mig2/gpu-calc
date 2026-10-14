@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { estimateTrainingRun } from './calculator'
-import { getH100Reference, getGpuById, GPU_SKUS } from './gpu-data'
+import { getH100Reference, getGpuById } from './gpu-data'
 import type { TrainingScenario } from './types'
 
 function makeDefaultScenario(overrides: Partial<TrainingScenario> = {}): TrainingScenario {
@@ -69,7 +69,7 @@ describe('worked examples from Tech Spec §8', () => {
     ['gb200-nvl72-gpu', 3],
   ]
 
-  for (const [modelParams, _tokens, windowDays, ...gpuCounts] of examples) {
+  for (const [modelParams, , windowDays, ...gpuCounts] of examples) {
     const modelLabel = modelParams >= 1e9 ? `${modelParams / 1e9}B` : `${modelParams / 1e6}M`
 
     for (const [skuId, idx] of skuExpected) {
@@ -224,6 +224,103 @@ describe('warnings', () => {
     )
   })
 
+  it('explains the FP8 MFU factor and why it is applied', () => {
+    const scenario = makeDefaultScenario({ precision: 'FP8_DENSE' })
+    const result = estimateTrainingRun(scenario, h100, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('0.70x MFU factor is applied for FP8'),
+    )
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('transformer-block linear layers'),
+    )
+  })
+
+  it('explains the FP4 MFU factor', () => {
+    const b200 = getGpuById('b200-sxm')!
+    const scenario = makeDefaultScenario({
+      precision: 'FP4_DENSE',
+      selectedGpuIds: ['b200-sxm'],
+      mfuByGpuId: { 'b200-sxm': 0.39 },
+    })
+    const result = estimateTrainingRun(scenario, b200, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('0.50x MFU factor is applied for FP4'),
+    )
+  })
+
+  it('warns that NVFP4 pretraining is validated but not a drop-in flag', () => {
+    const b200 = getGpuById('b200-sxm')!
+    const scenario = makeDefaultScenario({
+      precision: 'FP4_DENSE',
+      selectedGpuIds: ['b200-sxm'],
+      mfuByGpuId: { 'b200-sxm': 0.39 },
+    })
+    const result = estimateTrainingRun(scenario, b200, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('Random Hadamard transforms'),
+    )
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('10T tokens'),
+    )
+  })
+
+  it('does not emit the FP4 recipe warning at BF16', () => {
+    const scenario = makeDefaultScenario()
+    const result = estimateTrainingRun(scenario, h100, h100)
+    expect(result.warnings).not.toContainEqual(
+      expect.stringContaining('Random Hadamard transforms'),
+    )
+    expect(result.warnings).not.toContainEqual(
+      expect.stringContaining('MFU factor is applied'),
+    )
+  })
+
+  it('warns that B300 has no BF16 compute gain over B200', () => {
+    const b300 = getGpuById('b300-sxm')!
+    const scenario = makeDefaultScenario({
+      selectedGpuIds: ['b300-sxm'],
+      mfuByGpuId: { 'b300-sxm': 0.40 },
+    })
+    const result = estimateTrainingRun(scenario, b300, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('same dense BF16 and FP8 peak as B200'),
+    )
+  })
+
+  it('warns about B300 at FP8 too, where it is also B200-equivalent', () => {
+    const b300 = getGpuById('b300-sxm')!
+    const scenario = makeDefaultScenario({
+      precision: 'FP8_DENSE',
+      selectedGpuIds: ['b300-sxm'],
+      mfuByGpuId: { 'b300-sxm': 0.40 },
+    })
+    const result = estimateTrainingRun(scenario, b300, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('same dense BF16 and FP8 peak as B200'),
+    )
+  })
+
+  it('does not warn about B300 at FP4, where the uplift is real', () => {
+    const b300 = getGpuById('b300-sxm')!
+    const scenario = makeDefaultScenario({
+      precision: 'FP4_DENSE',
+      selectedGpuIds: ['b300-sxm'],
+      mfuByGpuId: { 'b300-sxm': 0.40 },
+    })
+    const result = estimateTrainingRun(scenario, b300, h100)
+    expect(result.warnings).not.toContainEqual(
+      expect.stringContaining('same dense BF16 and FP8 peak as B200'),
+    )
+  })
+
+  it('warns when FP4 falls back to a higher-precision peak on Hopper', () => {
+    const scenario = makeDefaultScenario({ precision: 'FP4_DENSE' })
+    const result = estimateTrainingRun(scenario, h100, h100)
+    expect(result.warnings).toContainEqual(
+      expect.stringContaining('no dense FP4 peak'),
+    )
+  })
+
   it('warns for H200 about same BF16 peak', () => {
     const h200 = getGpuById('h200-sxm')!
     const scenario = makeDefaultScenario({
@@ -255,9 +352,12 @@ describe('formula trace', () => {
   it('produces trace for 70B canonical example', () => {
     const scenario = makeDefaultScenario()
     const result = estimateTrainingRun(scenario, h100, h100)
-    expect(result.trace).toHaveLength(7)
+    // 8 entries, not 7: the hardware trace now opens with the explicit
+    // effective-MFU derivation (base x precision factor x MoE factor).
+    expect(result.trace).toHaveLength(8)
     expect(result.trace[0]).toContain('7.00e+10')
     expect(result.trace[1]).toContain('1.40e+12')
-    expect(result.trace[6]).toContain('701')
+    expect(result.trace[4]).toContain('Effective MFU')
+    expect(result.trace[7]).toContain('701')
   })
 })

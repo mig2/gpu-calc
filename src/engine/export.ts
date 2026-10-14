@@ -106,7 +106,8 @@ export function decodeScenarioFromHash(hash: string): { scenario: Partial<Traini
     if (gpus) result.selectedGpuIds = gpus.split(',');
 
     const precision = params.get('precision');
-    if (precision === 'BF16_DENSE' || precision === 'FP8_DENSE') result.precision = precision;
+    if (precision === 'BF16_DENSE' || precision === 'FP8_DENSE' || precision === 'FP4_DENSE')
+      result.precision = precision;
 
     const avail = params.get('avail');
     if (avail) result.availability = parseFloat(avail);

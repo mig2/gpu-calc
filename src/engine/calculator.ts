@@ -1,6 +1,42 @@
-import type { GpuSku, TrainingScenario, EstimateResult } from './types';
-import { estimateHardware } from './hardware-estimator';
+import type { GpuSku, Precision, TrainingScenario, EstimateResult } from './types';
+import { estimateHardware, PRECISION_MFU_FACTORS } from './hardware-estimator';
 import { computeLlmFlops } from './adapters/llm-adapter';
+
+/**
+ * Warnings that depend only on the chosen GPU and precision, shared by the
+ * calculator entry point and the store's multi-GPU path.
+ */
+export function buildHardwareWarnings(gpu: GpuSku, precision: Precision): string[] {
+  const warnings: string[] = [];
+
+  if (gpu.id === 'h200-sxm') {
+    warnings.push(
+      'H200 has the same raw dense BF16 peak as H100. Its advantage is more HBM capacity and bandwidth, which can improve achieved MFU in memory-stressed runs.',
+    );
+  }
+
+  if (gpu.id === 'b300-sxm' && precision !== 'FP4_DENSE') {
+    warnings.push(
+      'B300 (Blackwell Ultra) has the same dense BF16 and FP8 peak as B200. Its uplift is 1.5x FP4 throughput and 49% more memory only, so at this precision it delivers no compute gain over B200.',
+    );
+  }
+
+  if (precision === 'FP4_DENSE') {
+    warnings.push(
+      'NVFP4 pretraining is validated — NVIDIA pretrained a 12B hybrid Mamba-Transformer on 10T tokens in NVFP4, matching an FP8 baseline — but it is not a drop-in flag. It requires Random Hadamard transforms, 2-D quantization, stochastic rounding and selective high-precision layers.',
+    );
+  }
+
+  if (precision === 'FP8_DENSE' || precision === 'FP4_DENSE') {
+    const label = precision === 'FP4_DENSE' ? 'FP4' : 'FP8';
+    const factor = PRECISION_MFU_FACTORS[precision];
+    warnings.push(
+      `A ${factor.toFixed(2)}x MFU factor is applied for ${label}, so the estimate does not assume the full peak-ratio speedup. Default recipes quantize only transformer-block linear layers; softmax, layernorm, residuals, optimizer state and all-reduce stay at higher precision, and Amdahl's law caps the end-to-end gain (measured FP8 wall-clock speedup is 1.3-1.5x, not 2x).`,
+    );
+  }
+
+  return warnings;
+}
 
 /**
  * Main entry point — backwards-compatible with existing TrainingScenario.
@@ -65,11 +101,8 @@ export function estimateTrainingRun(
       `Optimistic MFU warning: ${(mfu * 100).toFixed(0)}% MFU exceeds typical achieved utilization. Most production runs achieve 30-50%.`,
     );
   }
-  if (gpu.id === 'h200-sxm') {
-    warnings.push(
-      'H200 has the same raw dense BF16 peak as H100. Its advantage is more HBM capacity and bandwidth, which can improve achieved MFU in memory-stressed runs.',
-    );
-  }
+  warnings.push(...hwResult.warnings);
+  warnings.push(...buildHardwareWarnings(gpu, scenario.precision));
   if (hwResult.memoryLowerBoundGpus > hwResult.requiredGpus) {
     warnings.push(
       `Memory bound exceeds compute bound: at least ${hwResult.memoryLowerBoundGpus} GPUs needed for model state memory alone (vs ${hwResult.requiredGpus} for compute).`,

@@ -1,4 +1,5 @@
 import type { TrainingScenario, GpuSku } from './types';
+import { getPeakFlops, PRECISION_MFU_FACTORS } from './hardware-estimator';
 
 /**
  * Given a fixed GPU count and model size, solve for training time in seconds.
@@ -12,11 +13,10 @@ export function solveForTrainingTime(
   const D = scenario.tokensPerParameter * N;
   const totalFlops = 6 * N * D * scenario.overheadFactor;
 
-  const peak =
-    scenario.precision === 'BF16_DENSE'
-      ? gpu.bf16DenseFlops
-      : (gpu.fp8DenseFlops ?? gpu.bf16DenseFlops);
-  const mfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+  const peak = getPeakFlops(gpu, scenario.precision);
+  const precisionFactor = PRECISION_MFU_FACTORS[scenario.precision];
+  const baseMfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+  const mfu = baseMfu * precisionFactor;
   const sustained = peak * mfu * scenario.availability;
 
   const trainingSeconds = totalFlops / (gpuCount * sustained);
@@ -31,7 +31,7 @@ export function solveForTrainingTime(
       `N = ${fmt(N)}`,
       `D = ${scenario.tokensPerParameter} × N = ${fmt(D)}`,
       `Total FLOPs = 6 × N × D × ${scenario.overheadFactor} = ${fmt(totalFlops)}`,
-      `Sustained/GPU = ${fmt(peak)} × ${mfu} × ${scenario.availability} = ${fmt(sustained)} FLOP/s`,
+      `Sustained/GPU = ${fmt(peak)} × ${baseMfu} (base MFU) × ${precisionFactor} (precision factor) × ${scenario.availability} = ${fmt(sustained)} FLOP/s`,
       `Training seconds = ${fmt(totalFlops)} / (${gpuCount} × ${fmt(sustained)}) = ${Math.round(trainingSeconds).toLocaleString()}`,
       `Training days = ${trainingDays.toFixed(1)}`,
     ],
@@ -47,11 +47,10 @@ export function solveForMaxModelSize(
   gpu: GpuSku,
   gpuCount: number,
 ): { maxParameters: number; maxParametersLabel: string; trace: string[] } {
-  const peak =
-    scenario.precision === 'BF16_DENSE'
-      ? gpu.bf16DenseFlops
-      : (gpu.fp8DenseFlops ?? gpu.bf16DenseFlops);
-  const mfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+  const peak = getPeakFlops(gpu, scenario.precision);
+  const precisionFactor = PRECISION_MFU_FACTORS[scenario.precision];
+  const baseMfu = scenario.mfuByGpuId[gpu.id] ?? gpu.defaultMfu;
+  const mfu = baseMfu * precisionFactor;
   const sustained = peak * mfu * scenario.availability;
 
   // totalFlops = 6 * N * TPP * N * overhead = 6 * TPP * overhead * N^2
