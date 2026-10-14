@@ -93,12 +93,48 @@ describe('calculateSelfHostCost', () => {
     expect(result.requiredTokensPerSec).toBeCloseTo(57.87, 0)
   })
 
-  it('warns when throughput exceeded', () => {
+  /*
+   * Previously this asserted canServe === false, i.e. that the pane reports an
+   * impossible configuration and tells the user to "add more GPUs" -- advice
+   * the UI offered no way to follow (#141). Capacity is now auto-sized to the
+   * load, so the default answer is a servable configuration with its real cost.
+   */
+  it('auto-sizes replicas to serve the offered load', () => {
     const heavyUsage = { requestsPerDay: 500000, avgInputTokens: 1000, avgOutputTokens: 500 }
     const result = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', heavyUsage)
-    // Required: 500K * 500 / 86400 ≈ 2894 tok/s > 1200
+    // Required: 500K * 500 / 86400 ≈ 2894 tok/s against 1200 per replica -> 3
+    expect(result.replicasNeeded).toBe(3)
+    expect(result.replicas).toBe(3)
+    expect(result.canServe).toBe(true)
+    expect(result.totalOutputTokensPerSec).toBe(mockThroughput.outputTokensPerSec * 3)
+    expect(result.totalGpus).toBe(mockThroughput.gpuCount * 3)
+    expect(result.warnings).toContainEqual(expect.stringContaining('Auto-sized to 3 replicas'))
+  })
+
+  it('reports a shortfall only when replicas are explicitly held down', () => {
+    const heavyUsage = { requestsPerDay: 500000, avgInputTokens: 1000, avgOutputTokens: 500 }
+    const result = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', heavyUsage, 'onDemand', 1)
     expect(result.canServe).toBe(false)
-    expect(result.warnings).toContainEqual(expect.stringContaining('exceeds capacity'))
+    expect(result.replicas).toBe(1)
+    expect(result.replicasNeeded).toBe(3)
+    // The remedy named must be one the UI can actually perform.
+    expect(result.warnings).toContainEqual(expect.stringContaining('Raise replicas to 3'))
+  })
+
+  it('scales cost linearly with replicas', () => {
+    const light = { requestsPerDay: 10000, avgInputTokens: 1000, avgOutputTokens: 500 }
+    const one = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', light, 'onDemand', 1)
+    const three = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', light, 'onDemand', 3)
+    expect(three.monthlyGpuCost).toBeCloseTo(one.monthlyGpuCost * 3, 6)
+  })
+
+  it('computes utilization against total capacity, not one replica', () => {
+    const heavyUsage = { requestsPerDay: 500000, avgInputTokens: 1000, avgOutputTokens: 500 }
+    const r = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', heavyUsage)
+    expect(r.utilizationPercent).toBeLessThanOrEqual(100)
+    expect(r.utilizationPercent).toBeCloseTo(
+      (r.requiredTokensPerSec / r.totalOutputTokensPerSec) * 100, 6,
+    )
   })
 
   it('warns about low utilization', () => {
@@ -146,13 +182,37 @@ describe('calculateBreakeven', () => {
     expect(breakeven.apiCheaperBelow).toBe(true)
   })
 
-  it('self-host is cheaper at high volume', () => {
+  /*
+   * This previously asserted that self-host is unconditionally cheaper at high
+   * volume. That only held because self-host cost was FIXED -- the bug in #141.
+   * With replicas sized to load, both sides scale with volume, so the question
+   * stops being "what volume?" and becomes "cheaper per token, at what
+   * utilization?". Asserting the structure rather than a direction.
+   */
+  it('compares cost per token once both sides scale with volume', () => {
     const highUsage = { requestsPerDay: 500000, avgInputTokens: 1000, avgOutputTokens: 500 }
     const apiResult = calculateApiCost(mockApiModel, 'OpenAI', highUsage)
     const selfHostResult = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', highUsage)
     const breakeven = calculateBreakeven(apiResult, selfHostResult, highUsage)
-    expect(breakeven.apiCheaperBelow).toBe(false)
-    expect(breakeven.monthlySavingsAtCurrentVolume).toBeGreaterThan(0)
+
+    expect(breakeven.apiCostPerMillionOutputTokens).toBeGreaterThan(0)
+    expect(breakeven.selfHostCostPerMillionOutputTokens).toBeGreaterThan(0)
+    expect(breakeven.selfHostCheaperPerToken).toBe(
+      breakeven.selfHostCostPerMillionOutputTokens < breakeven.apiCostPerMillionOutputTokens,
+    )
+    // Multi-replica: the single crossover volume is flagged as not meaningful.
+    expect(selfHostResult.replicas).toBeGreaterThan(1)
+    expect(breakeven.breakevenNote).toContain('not meaningful')
+  })
+
+  it('still reports a meaningful crossover while one replica suffices', () => {
+    const light = { requestsPerDay: 5000, avgInputTokens: 1000, avgOutputTokens: 500 }
+    const apiResult = calculateApiCost(mockApiModel, 'OpenAI', light)
+    const selfHostResult = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', light)
+    const breakeven = calculateBreakeven(apiResult, selfHostResult, light)
+    expect(selfHostResult.replicas).toBe(1)
+    expect(breakeven.breakevenNote).not.toContain('not meaningful')
+    expect(breakeven.breakevenRequestsPerDay).toBeGreaterThan(0)
   })
 })
 

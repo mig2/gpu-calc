@@ -28,9 +28,19 @@ export type SelfHostCostResult = {
   model: string;
   cloudProvider: string;
   instance: string;
+  /** GPUs per replica, from the throughput table row. */
   gpuCount: number;
+  /** Replicas actually provisioned (user-chosen, or the computed requirement). */
+  replicas: number;
+  /** Replicas the offered load requires, before any user override. */
+  replicasNeeded: number;
+  /** GPUs across all replicas. */
+  totalGpus: number;
   monthlyGpuCost: number;
+  /** Capacity of ONE replica. */
   maxOutputTokensPerSec: number;
+  /** Capacity across all provisioned replicas. */
+  totalOutputTokensPerSec: number;
   requiredTokensPerSec: number;
   canServe: boolean;
   utilizationPercent: number;
@@ -44,6 +54,17 @@ export type BreakevenResult = {
   apiCheaperBelow: boolean;
   monthlySavingsAtCurrentVolume: number;
   annualSavingsAtCurrentVolume: number;
+  /** Effective $ per million output tokens, API side. */
+  apiCostPerMillionOutputTokens: number;
+  /** Effective $ per million output tokens, self-host side, at this provisioning. */
+  selfHostCostPerMillionOutputTokens: number;
+  /**
+   * True when self-host is cheaper per token, so it wins at every volume that
+   * keeps the replicas busy -- i.e. there is no crossover volume to find.
+   */
+  selfHostCheaperPerToken: boolean;
+  /** Why the breakeven volume is or is not a meaningful number here. */
+  breakevenNote: string;
 };
 
 export function calculateApiCost(
@@ -97,6 +118,13 @@ export function calculateSelfHostCost(
   cloudProviderName: string,
   usage: UsagePattern,
   pricingTier: 'onDemand' | 'reserved' | 'spot' = 'onDemand',
+  /**
+   * Replicas to provision. Omit to auto-size to the offered load, which is
+   * almost always what the user means: reporting the cost of a configuration
+   * that provably cannot serve the workload is not a useful answer.
+   * Pass an explicit number to model deliberate under- or over-provisioning.
+   */
+  replicasOverride?: number,
 ): SelfHostCostResult {
   const warnings: string[] = [];
 
@@ -106,14 +134,29 @@ export function calculateSelfHostCost(
     pricingTier === 'spot' ? (instance.spotPerHr ?? instance.onDemandPerHr) :
     instance.onDemandPerHr;
 
-  // Scale cost to match GPU count needed for the model
-  const instancesNeeded = Math.ceil(throughput.gpuCount / instance.gpuCount);
-  const monthlyGpuCost = pricePerHr * 24 * DAYS_PER_MONTH * instancesNeeded;
+  // Instances to hold ONE replica of the model. This is a function of model
+  // size and instance shape only -- it says nothing about serving capacity.
+  const instancesPerReplica = Math.ceil(throughput.gpuCount / instance.gpuCount);
 
-  // Throughput check
+  // Offered load, and how many replicas it takes to serve it.
   const requiredOutputTokensPerSec = (usage.requestsPerDay * usage.avgOutputTokens) / 86_400;
-  const canServe = requiredOutputTokensPerSec <= throughput.outputTokensPerSec;
-  const utilizationPercent = (requiredOutputTokensPerSec / throughput.outputTokensPerSec) * 100;
+  const perReplicaCapacity = throughput.outputTokensPerSec;
+  const replicasNeeded =
+    perReplicaCapacity > 0
+      ? Math.max(1, Math.ceil(requiredOutputTokensPerSec / perReplicaCapacity))
+      : 1;
+  const replicas = Math.max(1, Math.floor(replicasOverride ?? replicasNeeded));
+
+  const totalOutputTokensPerSec = perReplicaCapacity * replicas;
+  const totalGpus = throughput.gpuCount * replicas;
+  const monthlyGpuCost =
+    pricePerHr * 24 * DAYS_PER_MONTH * instancesPerReplica * replicas;
+
+  const canServe = requiredOutputTokensPerSec <= totalOutputTokensPerSec;
+  const utilizationPercent =
+    totalOutputTokensPerSec > 0
+      ? (requiredOutputTokensPerSec / totalOutputTokensPerSec) * 100
+      : 0;
 
   // Rough TTFT estimate (larger models = higher latency)
   const paramBillions = parseFloat(throughput.parameters) || 7;
@@ -121,7 +164,13 @@ export function calculateSelfHostCost(
 
   if (!canServe) {
     warnings.push(
-      `Required throughput (${requiredOutputTokensPerSec.toFixed(1)} tok/s) exceeds capacity (${throughput.outputTokensPerSec} tok/s). Add more GPUs or reduce request volume.`,
+      `Under-provisioned: ${requiredOutputTokensPerSec.toFixed(1)} tok/s required against ${totalOutputTokensPerSec.toFixed(1)} tok/s from ${replicas} replica${replicas === 1 ? '' : 's'}. Raise replicas to ${replicasNeeded} (${throughput.gpuCount * replicasNeeded} GPUs total) or reduce request volume.`,
+    );
+  }
+
+  if (replicasOverride == null && replicasNeeded > 1) {
+    warnings.push(
+      `Auto-sized to ${replicasNeeded} replicas (${totalGpus} GPUs) to serve ${requiredOutputTokensPerSec.toFixed(1)} tok/s. One replica of ${throughput.model} on ${throughput.gpuCount}x ${throughput.gpu} serves ${perReplicaCapacity} tok/s.`,
     );
   }
 
@@ -140,8 +189,12 @@ export function calculateSelfHostCost(
     cloudProvider: cloudProviderName,
     instance: instance.instance,
     gpuCount: throughput.gpuCount,
+    replicas,
+    replicasNeeded,
+    totalGpus,
     monthlyGpuCost,
-    maxOutputTokensPerSec: throughput.outputTokensPerSec,
+    maxOutputTokensPerSec: perReplicaCapacity,
+    totalOutputTokensPerSec,
     requiredTokensPerSec: requiredOutputTokensPerSec,
     canServe,
     utilizationPercent,
@@ -149,10 +202,12 @@ export function calculateSelfHostCost(
     trace: [
       `Model: ${throughput.model} on ${throughput.gpuCount}× ${throughput.gpu} (${throughput.framework}, ${throughput.quantization})`,
       `Cloud: ${cloudProviderName} ${instance.instance} @ $${pricePerHr.toFixed(2)}/hr (${pricingTier})`,
-      `Instances needed: ${instancesNeeded} (${instancesNeeded * instance.gpuCount} GPUs total)`,
-      `Monthly cost = $${pricePerHr.toFixed(2)} × 24h × ${DAYS_PER_MONTH.toFixed(4)}d × ${instancesNeeded} = $${monthlyGpuCost.toFixed(2)}`,
+      `Instances per replica: ${instancesPerReplica} (sized to hold the model, not to serve load)`,
       `Required throughput = ${usage.requestsPerDay.toLocaleString()} req/day × ${usage.avgOutputTokens} tokens / 86400s = ${requiredOutputTokensPerSec.toFixed(1)} tok/s`,
-      `Max throughput = ${throughput.outputTokensPerSec} tok/s`,
+      `Capacity per replica = ${perReplicaCapacity} tok/s`,
+      `Replicas needed = ceil(${requiredOutputTokensPerSec.toFixed(1)} / ${perReplicaCapacity}) = ${replicasNeeded}${replicasOverride != null ? `; overridden to ${replicas}` : ''}`,
+      `Total capacity = ${perReplicaCapacity} × ${replicas} = ${totalOutputTokensPerSec.toFixed(1)} tok/s across ${totalGpus} GPUs`,
+      `Monthly cost = $${pricePerHr.toFixed(2)} × 24h × ${DAYS_PER_MONTH.toFixed(4)}d × ${instancesPerReplica} inst × ${replicas} replicas = $${monthlyGpuCost.toFixed(2)}`,
       `Utilization = ${utilizationPercent.toFixed(1)}%`,
       `Estimated TTFT ≈ ${estimatedTtftMs}ms`,
     ],
@@ -165,23 +220,71 @@ export function calculateBreakeven(
   selfHostCost: SelfHostCostResult,
   usage: UsagePattern,
 ): BreakevenResult {
-  // Find breakeven: at what request volume does self-host become cheaper?
-  // API cost scales linearly with requests. Self-host is fixed.
-  // breakeven = selfHostMonthlyCost / DAYS_PER_MONTH / costPerRequest
+  /*
+   * The original model assumed self-host cost was FIXED and API cost variable,
+   * so a crossover volume always existed. Once replicas are sized to load
+   * (#141) both sides scale with volume, and that framing largely collapses:
+   * if self-host is cheaper per token it wins at every volume that keeps the
+   * replicas busy, and if it is dearer it never wins at all.
+   *
+   * What actually decides it is UTILIZATION, not volume -- which matches the
+   * published finding that break-even utilization against API pricing is ~60%.
+   * The crossover volume is still reported, because it is meaningful in the
+   * one-replica case, but it is labelled rather than presented as the answer.
+   */
+  const monthlyOutputTokens =
+    usage.requestsPerDay * usage.avgOutputTokens * DAYS_PER_MONTH;
+
+  const apiCostPerMillionOutputTokens =
+    monthlyOutputTokens > 0 ? (apiCost.monthlyCost / monthlyOutputTokens) * 1e6 : 0;
+
+  // Self-host is billed for provisioned capacity whether or not it is used,
+  // so divide by what is actually served, not by what could be.
+  const selfHostCostPerMillionOutputTokens =
+    monthlyOutputTokens > 0
+      ? (selfHostCost.monthlyGpuCost / monthlyOutputTokens) * 1e6
+      : Infinity;
+
+  const selfHostCheaperPerToken =
+    selfHostCostPerMillionOutputTokens < apiCostPerMillionOutputTokens;
+
+  // Volume at which API cost overtakes the CURRENT self-host bill.
   const dailySelfHostCost = selfHostCost.monthlyGpuCost / DAYS_PER_MONTH;
-  const breakevenRequestsPerDay = apiCost.costPerRequest > 0
-    ? Math.ceil(dailySelfHostCost / apiCost.costPerRequest)
-    : Infinity;
+  const breakevenRequestsPerDay =
+    apiCost.costPerRequest > 0
+      ? Math.ceil(dailySelfHostCost / apiCost.costPerRequest)
+      : Infinity;
 
   const apiCheaperBelow = usage.requestsPerDay < breakevenRequestsPerDay;
+
+  let breakevenNote: string;
+  if (selfHostCost.replicas > 1) {
+    breakevenNote =
+      `Self-host is provisioned as ${selfHostCost.replicas} replicas, so its cost scales with volume too. ` +
+      `A single crossover volume is not meaningful here -- compare cost per token instead ` +
+      `($${selfHostCostPerMillionOutputTokens.toFixed(2)} self-host vs $${apiCostPerMillionOutputTokens.toFixed(2)} API per million output tokens) ` +
+      `and treat utilization, not volume, as the deciding variable.`;
+  } else if (selfHostCost.utilizationPercent < 60) {
+    breakevenNote =
+      `One replica at ${selfHostCost.utilizationPercent.toFixed(1)}% utilization. Published break-even utilization against API pricing is around 60%, ` +
+      `so this configuration pays for idle capacity.`;
+  } else {
+    breakevenNote =
+      `One replica at ${selfHostCost.utilizationPercent.toFixed(1)}% utilization; the crossover volume below is meaningful while a single replica suffices.`;
+  }
+
   const monthlySavings = apiCost.monthlyCost - selfHostCost.monthlyGpuCost;
-  const annualSavings = apiCost.annualCost - (selfHostCost.monthlyGpuCost * 12);
+  const annualSavings = apiCost.annualCost - selfHostCost.monthlyGpuCost * 12;
 
   return {
     breakevenRequestsPerDay,
     apiCheaperBelow,
     monthlySavingsAtCurrentVolume: monthlySavings,
     annualSavingsAtCurrentVolume: annualSavings,
+    apiCostPerMillionOutputTokens,
+    selfHostCostPerMillionOutputTokens,
+    selfHostCheaperPerToken,
+    breakevenNote,
   };
 }
 
@@ -191,12 +294,30 @@ export function calculateBreakeven(
 export function generateBreakevenCurve(
   apiModel: ApiModel,
   providerName: string,
-  selfHostMonthlyCost: number,
+  /**
+   * Cost of ONE replica per month. Self-host cost is a staircase, not a flat
+   * line: serving more than one replica's capacity requires another replica.
+   * Passing a single total here was the bug behind #141/#101.
+   */
+  selfHostMonthlyCostPerReplica: number,
   avgInputTokens: number,
   avgOutputTokens: number,
   maxRequestsPerDay: number = 100000,
-): { requestsPerDay: number; apiMonthlyCost: number; selfHostMonthlyCost: number }[] {
-  const points: { requestsPerDay: number; apiMonthlyCost: number; selfHostMonthlyCost: number }[] = [];
+  /** Output tokens/sec one replica serves. Omit to keep the legacy flat line. */
+  perReplicaTokensPerSec?: number,
+): {
+  requestsPerDay: number;
+  apiMonthlyCost: number;
+  selfHostMonthlyCost: number;
+  replicas: number;
+}[] {
+  const points: {
+    requestsPerDay: number;
+    apiMonthlyCost: number;
+    selfHostMonthlyCost: number;
+    replicas: number;
+  }[] = [];
+
   const steps = [0, 100, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
     .filter((v) => v <= maxRequestsPerDay);
 
@@ -206,10 +327,19 @@ export function generateBreakevenCurve(
       avgInputTokens,
       avgOutputTokens,
     });
+
+    // Replicas required to serve this volume, so the self-host line steps.
+    let replicas = 1;
+    if (perReplicaTokensPerSec && perReplicaTokensPerSec > 0) {
+      const requiredTokensPerSec = (rpd * avgOutputTokens) / 86_400;
+      replicas = Math.max(1, Math.ceil(requiredTokensPerSec / perReplicaTokensPerSec));
+    }
+
     points.push({
       requestsPerDay: rpd,
       apiMonthlyCost: result.monthlyCost,
-      selfHostMonthlyCost,
+      selfHostMonthlyCost: selfHostMonthlyCostPerReplica * replicas,
+      replicas,
     });
   }
 

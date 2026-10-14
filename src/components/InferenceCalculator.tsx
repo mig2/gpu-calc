@@ -52,6 +52,8 @@ export function InferenceCalculator() {
   const [cloudProviderIdx, setCloudProviderIdx] = useState(0)
   const [cloudInstanceIdx, setCloudInstanceIdx] = useState(0)
   const [pricingTier, setPricingTier] = useState<PricingTier>('onDemand')
+  // null = auto-size replicas to the offered load; a number pins it (#141)
+  const [replicasOverride, setReplicasOverride] = useState<number | null>(null)
 
   // When use case changes, auto-fill token sizes
   useEffect(() => {
@@ -94,9 +96,9 @@ export function InferenceCalculator() {
 
   const selfHostResult = useMemo(
     () => selfHostEntry && cloudInstance
-      ? calculateSelfHostCost(selfHostEntry, cloudInstance, cloudProvider.provider, usage, pricingTier)
+      ? calculateSelfHostCost(selfHostEntry, cloudInstance, cloudProvider.provider, usage, pricingTier, replicasOverride ?? undefined)
       : null,
-    [selfHostEntry, cloudInstance, cloudProvider, usage.requestsPerDay, usage.avgInputTokens, usage.avgOutputTokens, pricingTier],
+    [selfHostEntry, cloudInstance, cloudProvider, usage.requestsPerDay, usage.avgInputTokens, usage.avgOutputTokens, pricingTier, replicasOverride],
   )
 
   const breakeven = useMemo(
@@ -106,9 +108,18 @@ export function InferenceCalculator() {
 
   const chartData = useMemo(
     () => apiModel && selfHostResult
-      ? generateBreakevenCurve(apiModel, apiProvider.provider, selfHostResult.monthlyGpuCost, avgInputTokens, avgOutputTokens, Math.max(100000, requestsPerDay * 3))
+      ? generateBreakevenCurve(
+          apiModel,
+          apiProvider.provider,
+          // per-replica cost, so the self-host line can step with volume
+          selfHostResult.monthlyGpuCost / Math.max(1, selfHostResult.replicas),
+          avgInputTokens,
+          avgOutputTokens,
+          Math.max(100000, requestsPerDay * 3),
+          selfHostResult.maxOutputTokensPerSec,
+        )
       : [],
-    [apiModel, apiProvider, selfHostResult?.monthlyGpuCost, avgInputTokens, avgOutputTokens, requestsPerDay],
+    [apiModel, apiProvider, selfHostResult?.monthlyGpuCost, selfHostResult?.replicas, selfHostResult?.maxOutputTokensPerSec, avgInputTokens, avgOutputTokens, requestsPerDay],
   )
 
   // Sync to store for header export controls
@@ -364,6 +375,35 @@ export function InferenceCalculator() {
             </select>
           </fieldset>
           <fieldset>
+            <legend>Replicas</legend>
+            <div className="scale-inputs">
+              <input
+                type="number"
+                min={1}
+                aria-label="Replicas"
+                value={replicasOverride ?? selfHostResult?.replicasNeeded ?? 1}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value)
+                  if (v > 0) setReplicasOverride(v)
+                }}
+              />
+              <button
+                className={replicasOverride === null ? 'active' : ''}
+                onClick={() => setReplicasOverride(null)}
+                title="Size replicas automatically to serve the offered load"
+              >
+                Auto
+              </button>
+            </div>
+            {selfHostResult && (
+              <p className="inference-data-note">
+                {replicasOverride === null
+                  ? `Auto-sized to ${selfHostResult.replicas} × ${selfHostEntry?.gpuCount ?? 1} GPU = ${selfHostResult.totalGpus} GPUs total.`
+                  : `Pinned to ${selfHostResult.replicas}; load needs ${selfHostResult.replicasNeeded}.`}
+              </p>
+            )}
+          </fieldset>
+          <fieldset>
             <legend>Pricing Tier</legend>
             <div className="presets">
               {(['onDemand', 'reserved', 'spot'] as PricingTier[]).map((tier) => (
@@ -381,7 +421,8 @@ export function InferenceCalculator() {
                 <span className="label">/ month</span>
               </div>
               <dl className="result-details">
-                <div><dt>Max throughput</dt><dd>{selfHostResult.maxOutputTokensPerSec.toLocaleString()} tok/s</dd></div>
+                <div><dt>Replicas</dt><dd>{selfHostResult.replicas} ({selfHostResult.totalGpus} GPUs)</dd></div>
+                <div><dt>Capacity</dt><dd>{selfHostResult.totalOutputTokensPerSec.toLocaleString()} tok/s</dd></div>
                 <div><dt>Required throughput</dt><dd>{selfHostResult.requiredTokensPerSec.toFixed(1)} tok/s</dd></div>
                 <div><dt>Utilization</dt><dd>{selfHostResult.utilizationPercent.toFixed(1)}%</dd></div>
                 <div><dt>Est. TTFT</dt><dd>~{selfHostResult.estimatedTtftMs}ms</dd></div>
