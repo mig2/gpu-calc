@@ -229,6 +229,22 @@
       <li><a href="#inference-export">Export</a></li>
     </ol>
   </li>
+  <li><a href="#finetuning">Fine-Tuning Calculator</a>
+    <ol style="margin-top: 0.25rem;">
+      <li><a href="#finetune-quick-start">Quick Start</a></li>
+      <li><a href="#method-matrix">Reading the Method &times; GPU Matrix</a></li>
+      <li><a href="#methods-reference">Methods Reference</a></li>
+      <li><a href="#goal-presets">Goal Presets</a></li>
+      <li><a href="#finetune-inputs">Input Reference</a></li>
+      <li><a href="#finetune-catalog">Model Catalog</a></li>
+      <li><a href="#finetune-math">The Math (Formulas)</a></li>
+      <li><a href="#finetune-moe">MoE Models</a></li>
+      <li><a href="#rl-post-training">RL Post-Training (GRPO / PPO)</a></li>
+      <li><a href="#finetune-warnings">Warnings</a></li>
+      <li><a href="#finetune-confidence">Confidence Levels</a></li>
+      <li><a href="#finetune-export">Export</a></li>
+    </ol>
+  </li>
   <li><a href="#custom-gpus">Custom GPUs</a></li>
   <li><a href="#worked-examples">Worked Examples</a></li>
   <li><a href="#references">References</a></li>
@@ -238,15 +254,18 @@
 <!-- ============================================================ -->
 <h2 id="overview">1. Overview</h2>
 
-<p>This calculator has two modes:</p>
+<p>This calculator has three modes:</p>
 <ul>
   <li><strong>Training Calculator</strong> &mdash; estimates accelerator requirements for training across four model families (LLM, Time-Series, Tabular Foundation, Classical Tabular / GBDT)</li>
   <li><strong>Inference Calculator</strong> &mdash; estimates monthly costs for serving an LLM via API (buy) vs self-hosted GPUs (build), and identifies the breakeven point</li>
+  <li><strong>Fine-Tuning Calculator</strong> &mdash; estimates whether a given open-weight model and fine-tuning method fit on a given GPU, how many GPUs the memory floor demands, and what the run costs</li>
 </ul>
 
 <p><strong>When to use the Training Calculator:</strong> You are planning a pretraining run (or GBDT sweep) and need to estimate GPU count, training time, or cluster size. You know (or can estimate) the model size, training window, and data budget.</p>
 
 <p><strong>When to use the Inference Calculator:</strong> You have a trained model and want to decide between paying per-token for a managed API or running your own GPU cluster. You know (or can estimate) your request volume.</p>
+
+<p><strong>When to use the Fine-Tuning Calculator:</strong> You are adapting an existing open-weight model and need to know whether it fits &mdash; which method, which GPU, how many of them. This pane is memory-feasibility-first, where the Training Calculator is deadline-first.</p>
 
 <hr>
 
@@ -263,7 +282,7 @@
 <p><strong>What it is for:</strong></p>
 <ul>
   <li>Planning GPU cluster size for pretraining runs</li>
-  <li>Comparing GPU SKUs (H100, H200, B200, GB200) under the same assumptions</li>
+  <li>Comparing accelerator SKUs (15 built-in, from H100 to MI450, TPU v7, Trainium3 and Gaudi 3) under the same assumptions</li>
   <li>Sensitivity analysis across MFU and training window</li>
   <li>Back-of-envelope validation of vendor or team estimates</li>
   <li>Estimating training time for GBDT hyperparameter sweeps</li>
@@ -327,9 +346,9 @@
     <tr><td>Training window</td><td>Wall-clock time budget</td><td>30 days</td><td>Positive; h/d/w units</td></tr>
     <tr><td>Tokens per parameter</td><td>Training tokens = TPP &times; N</td><td>20</td><td>Positive integer; presets 20, 50, 100, 200</td></tr>
     <tr><td>Training mode</td><td>Type of training run</td><td>Full pretraining</td><td>Full pretraining, Continued pretraining, SFT, LoRA, RLHF, Distillation</td></tr>
-    <tr><td>Precision</td><td>Numerical format</td><td>BF16 Dense</td><td>BF16 Dense, FP8 Dense</td></tr>
-    <tr><td>GPU SKU</td><td>Accelerator type(s)</td><td>H100 SXM</td><td>Multi-select; includes custom</td></tr>
-    <tr><td>MFU</td><td>Model FLOP utilization</td><td>40% (varies by SKU)</td><td>0&ndash;100%</td></tr>
+    <tr><td>Precision</td><td>Numerical format</td><td>BF16 Dense</td><td>BF16 Dense, FP8 Dense (experimental), FP4 Dense (Blackwell / MI355X only)</td></tr>
+    <tr><td>GPU SKU</td><td>Accelerator type(s)</td><td>H100 SXM</td><td>Multi-select across 15 built-in SKUs (NVIDIA, AMD, Google, AWS, Intel) plus custom; see <a href="#gpu-skus">2.9</a></td></tr>
+    <tr><td>MFU</td><td>Model FLOP utilization</td><td>Per-SKU default, 30&ndash;45%</td><td>0&ndash;100%; the effective MFU also carries precision and MoE factors &mdash; see <a href="#math">2.4</a></td></tr>
     <tr><td>Availability</td><td>Useful wall-clock fraction</td><td>90%</td><td>0&ndash;100%</td></tr>
     <tr><td>Overhead factor</td><td>Checkpointing, eval, restarts</td><td>1.10x</td><td>&ge; 1.0</td></tr>
     <tr><td>Memory bytes/param</td><td>State memory estimate</td><td>16</td><td>Positive</td></tr>
@@ -351,13 +370,13 @@
   <li><strong>MFU</strong> &mdash; per-GPU utilization (30% conservative, 40% planning, 50% strong)</li>
   <li><strong>Availability</strong> &mdash; fraction of wall-clock time spent training</li>
   <li><strong>Overhead</strong> &mdash; extra compute from checkpointing, evaluation, data stalls</li>
-  <li><strong>Precision</strong> &mdash; BF16 (standard) or FP8 (experimental)</li>
+  <li><strong>Precision</strong> &mdash; BF16 (standard), FP8 or FP4 (experimental). Lower precisions swap in a higher peak but are penalised by an MFU factor rather than delivering the full peak ratio &mdash; see <a href="#math">Section 2.4</a>.</li>
   <li><strong>Tokens per parameter</strong> &mdash; override the Chinchilla-20 default. Presets include 20 (Chinchilla), 50, 100 (Inference-optimal), and 200 (Over-trained). See <a href="#llm-mode">Section 2.5</a> for details on over-training.</li>
 </ul>
 <p>All results update live as you adjust sliders.</p>
 
 <h4>GPU Comparison</h4>
-<p>Select multiple GPU SKUs in the GPU selector. The comparison table shows side-by-side:</p>
+<p>Select multiple accelerator SKUs (any of the 15 built-in SKUs, or a custom one) in the GPU selector. The comparison table shows side-by-side:</p>
 <ul>
   <li>Required GPU count per SKU</li>
   <li>H100-equivalent count (normalized comparison)</li>
@@ -386,12 +405,49 @@
 <pre><code>C_total = 6 * N * D * overhead_factor</code></pre>
 
 <h4>Sustained Throughput</h4>
-<pre><code>sustained_per_GPU = peak_FLOP/s * MFU * availability</code></pre>
+<pre><code>effective_MFU     = base_MFU * precision_factor * moe_factor
+sustained_per_GPU = peak_FLOP/s * effective_MFU * availability</code></pre>
 <ul>
   <li><code>peak_FLOP/s</code> &mdash; dense tensor-core throughput for the selected precision</li>
-  <li><code>MFU</code> &mdash; fraction of peak actually delivered during training</li>
+  <li><code>base_MFU</code> &mdash; the per-SKU default (30&ndash;45%) or your per-GPU override</li>
   <li><code>availability</code> &mdash; fraction of wall-clock time spent doing useful training</li>
 </ul>
+
+<h4>Precision-Relative MFU Factors</h4>
+<p>Swapping in a lower-precision peak <strong>does not</strong> deliver the full peak ratio, and the calculator no longer pretends it does. Measured end-to-end FP8 wall-clock speedup is <strong>1.3&ndash;1.5&times;, not 2&times;</strong>, so the achieved MFU at FP8 is roughly <code>(1.3..1.5) / 2 = 0.65-0.75</code> of the BF16 MFU.</p>
+
+<table>
+  <thead>
+    <tr><th>Precision</th><th>MFU factor</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>BF16 Dense</td><td>1.00</td></tr>
+    <tr><td>FP8 Dense</td><td>0.70</td></tr>
+    <tr><td>FP4 Dense</td><td>0.50</td></tr>
+  </tbody>
+</table>
+
+<p>The reason is Amdahl&rsquo;s law. Default recipes quantize only the transformer-block linear layers; softmax, layernorm, residuals, attention masking, the optimizer and all-reduce stay at BF16 or FP32, so the 2&times; (or 4&times;) peak applies to only part of the step.</p>
+
+<div class="warning-note">
+  <strong>This changes every FP8 number the tool previously produced.</strong> Earlier versions assumed FP8 delivered a full 2&times; speedup over BF16. An FP8 estimate now yields roughly <code>2 &times; 0.70 = 1.4&times;</code> the BF16 throughput instead of <code>2&times;</code>, so required GPU counts at FP8 are about 43% higher than the old model gave. Re-run any FP8 scenario you saved or shared from an earlier version.
+</div>
+
+<h4>MoE Factor</h4>
+<table>
+  <thead>
+    <tr><th>Architecture</th><th>MFU factor</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Dense</td><td>1.00</td></tr>
+    <tr><td>Sparse (MoE)</td><td>0.85</td></tr>
+  </tbody>
+</table>
+<p>Sparse architectures pay a systems penalty &mdash; expert routing, all-to-all communication, load imbalance &mdash; on top of the precision factor. Validated against DeepSeek-V3: <code>0.70 (FP8) &times; 0.85 (MoE) = 0.595</code>, close to the observed 0.50 ratio of FP8-peak to BF16-peak utilization.</p>
+<p>The Training pane has no MoE input, so it always evaluates the dense factor of 1.00. The total-versus-active parameter split is modelled in the Fine-Tuning pane (<a href="#finetune-moe">Section 4.8</a>).</p>
+
+<h4>Missing Precision Peaks</h4>
+<p>Not every accelerator publishes a dense peak at every precision. When the selected precision has no published peak for a SKU, the calculator falls back <code>FP4 -&gt; FP8 -&gt; BF16</code> and warns that the number shown is therefore <strong>not</strong> a speedup for that precision &mdash; only the MFU penalty applies. TPU v6e has no FP8 or FP4 peak; MI300X, MI325X, TPU v7, Trainium2 and Gaudi 3 have no FP4 peak.</p>
 
 <h4>GPU Count</h4>
 <pre><code>GPUs = ceil(C_total / (training_window_seconds * sustained_per_GPU))</code></pre>
@@ -570,7 +626,9 @@ base_FLOPs = 6 * 1e9 * 5.12e10 = 3.072e20</code></pre>
 <p>This mode is fundamentally different from the other three. GBDT algorithms (LightGBM, XGBoost, CatBoost, Random Forest) are not transformer models and cannot be meaningfully estimated with a FLOP model. Instead, the calculator uses <strong>work units</strong> and <strong>empirical throughput benchmarks</strong>.</p>
 
 <p>A work unit represents one row-column-round operation. Total work is:</p>
-<pre><code>work_units = rows * columns * boosting_rounds * cv_folds * hp_trials</code></pre>
+<pre><code>base_work  = rows * columns * boosting_rounds
+depth_adj  = base_work * (max_depth / 6)
+work_units = depth_adj * cv_folds * hp_trials</code></pre>
 
 <p>Training time is estimated by dividing total work by a throughput coefficient (work units per second).</p>
 
@@ -581,70 +639,143 @@ base_FLOPs = 6 * 1e9 * 5.12e10 = 3.072e20</code></pre>
   </thead>
   <tbody>
     <tr><td>Algorithm</td><td>GBDT implementation</td><td>LightGBM, XGBoost, CatBoost, Random Forest, Custom</td></tr>
-    <tr><td>Rows</td><td>Training dataset rows</td><td></td></tr>
-    <tr><td>Columns</td><td>Features</td><td></td></tr>
+    <tr><td>Rows</td><td>Training dataset rows</td><td>GPU coefficients hold at &ge; 1M rows</td></tr>
+    <tr><td>Columns</td><td>Features</td><td>Assumed dense numeric; warns above 500</td></tr>
     <tr><td>Boosting rounds</td><td>Trees / iterations</td><td></td></tr>
+    <tr><td>Max depth</td><td>Tree depth (default 6)</td><td><strong>Scales the estimate</strong> linearly, as <code>work &times; depth/6</code>. Histogram GBDT cost is linear in depth &mdash; at each level the union of nodes covers all rows.</td></tr>
+    <tr><td>Max bins</td><td>Histogram bin count (default 256)</td><td><strong>Scales GPU throughput only</strong>, as <code>(256/bins)^0.263</code>, clamped to 0.7&ndash;2.0&times;. CPU throughput is nearly flat in bin count.</td></tr>
     <tr><td>CV folds</td><td>Cross-validation folds</td><td>Multiplier on total work</td></tr>
     <tr><td>HP trials</td><td>Hyperparameter search trials</td><td>Multiplier on total work</td></tr>
-    <tr><td>CPU / GPU</td><td>Implementation target</td><td>CPU is ~10x slower</td></tr>
+    <tr><td>CPU / GPU</td><td>Implementation target</td><td>Selects which coefficient column is used &mdash; see below</td></tr>
     <tr><td>Throughput coefficient</td><td>Work units per second</td><td>Set to 0 for benchmark defaults</td></tr>
   </tbody>
 </table>
 
-<h4>Default Throughput Benchmarks (GPU)</h4>
+<p><code>max_depth</code> and <code>max_bins</code> were previously collected and ignored. They now both affect the estimate.</p>
+
+<h4>Default Throughput Coefficients</h4>
+<p>Both columns, in work units per second. One work unit is <code>1 row &times; 1 column &times; 1 boosting round</code> &mdash; exactly the quantity this adapter counts.</p>
+
 <table>
   <thead>
-    <tr><th>Algorithm</th><th>Default Throughput (work units/sec)</th></tr>
+    <tr><th>Algorithm</th><th>GPU</th><th>CPU</th><th>Measured GPU speedup at &ge; 1M rows</th></tr>
   </thead>
   <tbody>
-    <tr><td>LightGBM</td><td>5.00e8 (~500M/sec)</td></tr>
-    <tr><td>XGBoost</td><td>3.00e8 (~300M/sec)</td></tr>
-    <tr><td>CatBoost</td><td>4.00e8 (~400M/sec)</td></tr>
-    <tr><td>Random Forest</td><td>2.00e8 (~200M/sec)</td></tr>
+    <tr><td>XGBoost</td><td>8.0e9</td><td>5.0e8</td><td>13.4&times; (range 4.5&ndash;23.4&times;)</td></tr>
+    <tr><td>LightGBM</td><td>1.5e9</td><td>1.5e9</td><td><strong>0.69&times; &mdash; GPU measured slower</strong> on the OpenCL backend; the equal coefficients reflect the newer CUDA backend at rough parity</td></tr>
+    <tr><td>CatBoost</td><td>5.0e9</td><td>7.0e8</td><td>9.7&times; (range 3.9&ndash;13.2&times;)</td></tr>
+    <tr><td>Random Forest</td><td>5.0e9</td><td>1.0e9</td><td>3&ndash;26&times;, rising with dataset size</td></tr>
+    <tr><td>Custom</td><td>2.0e9</td><td>5.0e8</td><td>No measurement exists &mdash; mid-range placeholder, flagged low confidence</td></tr>
   </tbody>
 </table>
 
-<p>CPU throughput is 10x lower than GPU defaults. These are rough estimates derived from common benchmarks and may be significantly off for your specific workload.</p>
+<p><strong>Provenance.</strong> These are not invented. Each pair is a geometric mean over the &ge; 1M-row datasets of a published benchmark, recomputed as <code>rows * columns * rounds / seconds</code> so it maps onto this adapter&rsquo;s work unit one-for-one.</p>
+<ul>
+  <li><strong>XGBoost / LightGBM / CatBoost</strong> &mdash; GBM-Benchmarks (the XGBoost maintainer&rsquo;s suite), AWS p3.16xlarge, 1&times; V100-16GB GPU against a 64-vCPU Xeon E5-2686 v4. Datasets: YearPredictionMSD, CoverType, Bosch, Synthetic, Higgs, Airline.</li>
+  <li><strong>LightGBM CPU</strong> is cross-checked against LightGBM&rsquo;s own single-machine experiments (2&times; E5-2690 v4, 28 cores): 1.13e9 on Higgs, 2.21e9 on MS LTR, 2.17e9 on Yahoo LTR, dense geometric mean 1.76e9.</li>
+  <li><strong>Random Forest</strong> &mdash; cuML accelerator benchmarks, RTX PRO 6000 Blackwell against a 32-core Threadripper PRO 7975WX, 100 estimators. Measured GPU range is 3e9&ndash;3.2e10; the conservative low end is used because the CPU baseline there is scikit-learn, a much weaker implementation than LightGBM.</li>
+</ul>
+
+<p><strong>Valid regime.</strong> Every anchor was measured at <strong>max_depth 6, 500 boosting rounds, &ge; 1M rows, dense numeric features, and default bin counts (~128&ndash;256)</strong>. <code>max_depth</code> and <code>max_bins</code> scale off those calibration points.</p>
+
+<p><strong>Known limits.</strong></p>
+<ul>
+  <li>The GPU anchors are V100-era (2018). H100 and Blackwell histogram building is bandwidth-bound and roughly 2&ndash;3&times; faster, so these defaults are conservative on modern hardware. That adjustment is extrapolation and is deliberately not applied.</li>
+  <li>The <code>rows &times; columns</code> work model collapses on sparse or one-hot data, by up to ~100&times;. LightGBM&rsquo;s Exclusive Feature Bundling collapses one-hot columns: its measured rate on Expo (11M &times; 700 one-hot) is 35&times; and on Allstate (13.2M &times; 4,228) is 100&times; the dense rate. A warning fires above 500 columns; the numbers are not corrected.</li>
+  <li>Below ~1M rows, GPU efficiency is scaled down by log-interpolation towards &ldquo;2.5&times; slower than the same library&rsquo;s CPU path at 100K rows&rdquo;. That interpolation is derived, not measured.</li>
+</ul>
+
+<div class="warning-note">
+  <strong>The old &ldquo;GPU is typically 5&ndash;10x faster&rdquo; claim was wrong as a general statement.</strong> It holds for XGBoost and CatBoost on &ge; 1M rows of dense numeric features. It does not hold for LightGBM, whose OpenCL backend measured <strong>0.69&times; &mdash; slower than its own CPU path, on 5 of 6 reference datasets</strong> &mdash; and it does not hold below roughly 500K rows for anything, where transfer and kernel-launch overhead dominate and a GPU is a net loss.
+</div>
+
+<h4>GPU Recommendation Verdict</h4>
+<p>The pane&rsquo;s real question is not &ldquo;how many GPUs&rdquo; but <strong>&ldquo;do I need a GPU at all&rdquo;</strong>, so the result carries an explicit verdict. Both sides of the comparison always use the default coefficients for the path you did <em>not</em> select, so it stays apples-to-apples.</p>
+
+<table>
+  <thead>
+    <tr><th>Verdict</th><th>Condition</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>GPU recommended</strong></td><td>GPU &ge; 2&times; faster <strong>and</strong> CPU wall-clock &gt; 15 minutes</td><td>1 GPU is enough. Multi-GPU GBDT is a niche; the recommended count is always 1.</td></tr>
+    <tr><td><strong>CPU sufficient</strong></td><td>GPU &lt; 2&times; faster, or CPU already finishes in under 15 minutes</td><td>The complexity is not worth it at this scale.</td></tr>
+    <tr><td><strong>GPU likely slower</strong></td><td>Predicted GPU speedup &lt; 0.95&times;</td><td>A GPU is predicted to be slower here outright.</td></tr>
+  </tbody>
+</table>
+
+<p>Where memory binds &mdash; which is rare, since a binned matrix is roughly <code>rows &times; columns</code> bytes, so a 1M &times; 100 table is ~100 MB &mdash; the answer is external memory on one device, not more GPUs. XGBoost 3.0 external memory trains a 1 TB dataset on a single GH200.</p>
 
 <h4>How to Calibrate</h4>
 <ol>
   <li>Run a small training job and record: rows, columns, rounds, wall-clock seconds.</li>
   <li>Compute: <code>throughput = (rows &times; columns &times; rounds) / seconds</code></li>
   <li>Enter this value as the throughput coefficient.</li>
-  <li>The confidence level improves from &ldquo;low&rdquo; to &ldquo;medium&rdquo; when a calibrated coefficient is provided.</li>
+  <li>Confidence improves to <strong>medium</strong>. Without calibration it is <strong>medium-low</strong>, or <strong>low</strong> for a custom algorithm or below the 1M-row regime.</li>
 </ol>
 
 <h4>Worked Example</h4>
-<p><strong>Inputs:</strong> LightGBM, 10M rows, 200 columns, 1,000 rounds, 5-fold CV, 20 HP trials, GPU.</p>
-<pre><code>base_work = 10,000,000 * 200 * 1,000 = 2.0e12 work units
+<p><strong>Inputs:</strong> LightGBM, 10M rows, 200 columns, 1,000 rounds, max_depth 6, 256 bins, 5-fold CV, 20 HP trials, GPU.</p>
+<pre><code>base_work  = 10,000,000 * 200 * 1,000 = 2.0e12 work units
+depth_adj  = 2.0e12 * (6 / 6) = 2.0e12
 total_work = 2.0e12 * 5 * 20 = 2.0e14 work units
-throughput = 5.0e8 /sec (LightGBM GPU default)
-estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre>
+throughput = 1.5e9 /sec (LightGBM GPU default x 1.000 small-data x 1.00 bins)
+estimated_time = 2.0e14 / 1.5e9 = 133,333 sec = 37.0 hours = 1.54 days</code></pre>
+
+<p><strong>Verdict: CPU sufficient.</strong> The CPU path gives exactly the same 37.0 hours, because LightGBM&rsquo;s GPU and CPU coefficients are equal. A GPU buys nothing here.</p>
+
+<p>Switch the algorithm to XGBoost and the picture changes completely: 2.0e14 / 8.0e9 = 25,000 s = <strong>6.9 hours on one GPU</strong> against 2.0e14 / 5.0e8 = 400,000 s = <strong>111 hours on CPU</strong>, a 16&times; speedup and a <strong>GPU recommended</strong> verdict. The algorithm choice matters more than the hardware choice.</p>
 
 <hr>
 
 <!-- ============================================================ -->
 <h3 id="gpu-skus">2.9 GPU SKU Reference</h3>
 
+<p>Fifteen built-in accelerator SKUs. All compute figures are <strong>dense</strong>, in TFLOP/s. Spec data as of <strong>2026-10-14</strong>.</p>
+
 <table>
   <thead>
-    <tr><th>GPU</th><th>Dense BF16 Peak</th><th>Dense FP8 Peak</th><th>Memory</th><th>Bandwidth</th><th>Default MFU</th></tr>
+    <tr><th>Accelerator</th><th>Dense BF16</th><th>Dense FP8</th><th>Dense FP4</th><th>Memory</th><th>Bandwidth</th><th>Default MFU</th></tr>
   </thead>
   <tbody>
-    <tr><td>H100 SXM</td><td>989.5 TFLOP/s</td><td>1,979 TFLOP/s</td><td>80 GB</td><td>3.35 TB/s</td><td>40%</td></tr>
-    <tr><td>H200 SXM</td><td>989.5 TFLOP/s</td><td>1,979 TFLOP/s</td><td>141 GB</td><td>4.8 TB/s</td><td>45%</td></tr>
-    <tr><td>B200 SXM / HGX B200</td><td>2,250 TFLOP/s</td><td>4,500 TFLOP/s</td><td>175 GB</td><td>&mdash;</td><td>40%</td></tr>
-    <tr><td>GB200 NVL72 (per GPU)</td><td>2,500 TFLOP/s</td><td>5,000 TFLOP/s</td><td>186 GB</td><td>8.0 TB/s</td><td>40%</td></tr>
+    <tr><td>NVIDIA H100 SXM</td><td>989.5</td><td>1,979</td><td>&mdash;</td><td>80 GB</td><td>3.35 TB/s</td><td>40%</td></tr>
+    <tr><td>NVIDIA H200 SXM</td><td>989.5</td><td>1,979</td><td>&mdash;</td><td>141 GB</td><td>4.8 TB/s</td><td>42%</td></tr>
+    <tr><td>NVIDIA B200 SXM / HGX B200</td><td>2,250</td><td>4,500</td><td>9,000</td><td>180 GB</td><td>7.7 TB/s</td><td>39%</td></tr>
+    <tr><td>NVIDIA B300 SXM (Blackwell Ultra)</td><td>2,250</td><td>4,500</td><td>13,500</td><td>288 GB</td><td>8.0 TB/s</td><td>40%</td></tr>
+    <tr><td>NVIDIA GB200 NVL72 (per GPU)</td><td>2,500</td><td>5,000</td><td>10,000</td><td>186 GB</td><td>8.0 TB/s</td><td>42%</td></tr>
+    <tr><td>NVIDIA GB300 NVL72 (per GPU, Ultra)</td><td>2,500</td><td>5,000</td><td>15,000</td><td>288 GB</td><td>8.0 TB/s</td><td>41%</td></tr>
+    <tr><td>AMD Instinct MI300X</td><td>1,307.4</td><td>1,307.4</td><td>&mdash;</td><td>192 GB</td><td>5.3 TB/s</td><td>30%</td></tr>
+    <tr><td>AMD Instinct MI325X</td><td>1,307.4</td><td>2,614.9</td><td>&mdash;</td><td>256 GB</td><td>6.0 TB/s</td><td>31%</td></tr>
+    <tr><td>AMD Instinct MI355X</td><td>2,500</td><td>5,000</td><td>10,100</td><td>288 GB</td><td>8.0 TB/s</td><td>33%</td></tr>
+    <tr><td>AMD Instinct MI450</td><td>5,000</td><td>20,000</td><td>40,000</td><td>432 GB</td><td>19.6 TB/s</td><td>30%</td></tr>
+    <tr><td>Google TPU v6e (Trillium)</td><td>918</td><td>&mdash;</td><td>&mdash;</td><td>32 GB</td><td>1.638 TB/s</td><td>45%</td></tr>
+    <tr><td>Google TPU v7 (Ironwood)</td><td>2,307</td><td>4,614</td><td>&mdash;</td><td>192 GB</td><td>7.37 TB/s</td><td>40%</td></tr>
+    <tr><td>AWS Trainium2</td><td>667</td><td>1,299</td><td>&mdash;</td><td>96 GB</td><td>2.9 TB/s</td><td>35%</td></tr>
+    <tr><td>AWS Trainium3</td><td>671</td><td>2,517</td><td>2,517</td><td>144 GB</td><td>4.9 TB/s</td><td>35%</td></tr>
+    <tr><td>Intel Gaudi 3</td><td>1,835</td><td>1,835</td><td>&mdash;</td><td>128 GB</td><td>3.7 TB/s</td><td>30%</td></tr>
   </tbody>
 </table>
 
 <div class="note">
-  <strong>H100 vs H200:</strong> These have identical raw dense BF16 peak FLOP/s. The H200 advantage is 76% more HBM capacity (141 vs 80 GB) and 43% more bandwidth (4.8 vs 3.35 TB/s). This allows larger microbatches, longer contexts, less activation checkpointing, and less aggressive sharding &mdash; all of which can improve achieved MFU. The calculator models this by giving H200 a higher default MFU (45% vs 40%), not a higher peak.
+  <strong>Dense vs sparse:</strong> NVIDIA publishes tensor-core throughput with 2:4 structural sparsity (asterisked on its datasheets); dense is exactly half, so every NVIDIA row here halves the headline number. AMD publishes dense FP16/BF16 directly but sparse FP8/FP4 &mdash; the AMD rows are the dense figures. Google and AWS publish dense. Structural sparsity is not used in pretraining, so the calculator uses dense exclusively.
+</div>
+
+<div class="warning-note">
+  <strong>Honesty caveat 1 &mdash; B300.</strong> Its dense BF16 and FP8 peaks are <strong>identical to B200&rsquo;s</strong> (2,250 and 4,500 TFLOP/s). Blackwell Ultra&rsquo;s uplift is 1.5&times; FP4 (13,500 dense) and 49% more memory (288 GB) &mdash; nothing else. A user selecting B300 for BF16 or FP8 work gets <strong>no compute gain over B200</strong>, and the calculator warns about it at those precisions.
+</div>
+
+<div class="warning-note">
+  <strong>Honesty caveat 2 &mdash; MI450.</strong> Its BF16 figure is <strong>extrapolated, not published</strong>. AMD released only FP8 (20 PF) and FP4 (40 PF); 5.0 PF BF16 is the conventional half-of-FP8 ratio, but AMD has never confirmed it for MI450. Treat BF16 results on this SKU as an estimate, not a spec. Bandwidth is reported as 19.6&ndash;23.3 TB/s (the lower bound is used). Low confidence overall.
 </div>
 
 <div class="note">
-  <strong>Dense vs Sparse:</strong> NVIDIA spec sheets often quote sparse tensor-core throughput. Dense values (used here) are approximately half the sparse numbers. This calculator uses dense values exclusively since dense training is the standard approach.
+  <strong>H100 vs H200:</strong> Identical raw dense BF16 peak &mdash; same Hopper compute dies. The H200 advantage is 76% more HBM capacity (141 vs 80 GB) and 43% more bandwidth (4.8 vs 3.35 TB/s), which allows larger microbatches, longer contexts, less activation checkpointing and less aggressive sharding, all of which can raise achieved MFU. The calculator models this with a higher default MFU (42% vs 40%), not a higher peak. The H200 default was lowered from 45% to 42% because no published pretraining MFU for any Hopper part exceeds Llama 3 405B&rsquo;s 43% on H100, so 45% was an unsourced claim.
 </div>
+
+<p><strong>Where FP8 buys memory but not time.</strong> On MI300X and Gaudi 3, FP8 runs at exactly the same rate as BF16 &mdash; the matrix engines gain no throughput at FP8, only a smaller memory footprint. On Trainium3, MXFP4 is quoted at the same 2,517 TFLOP/s as MXFP8, so 4-bit buys nothing in compute there either.</p>
+
+<p><strong>TPU v6e</strong> has no native FP8 or FP4: BF16 is its only training precision, and FP8/FP4 selections fall back to the BF16 peak (see <a href="#math">Section 2.4</a>).</p>
+
+<p><strong>Deliberately excluded.</strong> NVIDIA Vera Rubin VR200 / NVL144. Rack-level figures are published (3.6 EF FP4, 1.2 EF FP8 across 144 GPUs) but per-GPU dense BF16 is not, and sources conflict on whether the headline &ldquo;50 PFLOPS FP4&rdquo; is per-package or per-die. The row will be added when the datasheet lands.</p>
 
 <hr>
 
@@ -660,8 +791,8 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
   <tbody>
     <tr><td><strong>High</strong></td><td>Well-understood domain with empirically validated formulas. LLM mode with standard settings.</td></tr>
     <tr><td><strong>Medium</strong></td><td>Reasonable approximation but relies on analogies or simplifications. Time-series mode; classical tabular with calibrated throughput.</td></tr>
-    <tr><td><strong>Medium-low</strong></td><td>Significant uncertainty. Tabular foundation with row or axial tokenization.</td></tr>
-    <tr><td><strong>Low</strong></td><td>Order-of-magnitude estimate at best. Tabular foundation with cell tokenization; classical tabular without calibration.</td></tr>
+    <tr><td><strong>Medium-low</strong></td><td>Significant uncertainty. Tabular foundation with row or axial tokenization; classical tabular on benchmark defaults.</td></tr>
+    <tr><td><strong>Low</strong></td><td>Order-of-magnitude estimate at best. Tabular foundation with cell tokenization; classical tabular with a custom algorithm or below the 1M-row regime.</td></tr>
   </tbody>
 </table>
 
@@ -672,14 +803,17 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
   </thead>
   <tbody>
     <tr><td>LLM</td><td>Standard (6ND, BF16, full pretraining)</td><td>High</td></tr>
-    <tr><td>LLM</td><td>Non-standard (FP8, SFT/LoRA/RLHF)</td><td>Medium</td></tr>
+    <tr><td>LLM</td><td>Non-standard (FP8 or FP4, SFT/LoRA/RLHF)</td><td>Medium</td></tr>
     <tr><td>Time-Series</td><td>All tokenization modes</td><td>Medium</td></tr>
     <tr><td>Tabular Foundation</td><td>Row or axial tokenization</td><td>Medium-low</td></tr>
     <tr><td>Tabular Foundation</td><td>Cell or custom tokenization</td><td>Low</td></tr>
     <tr><td>Classical Tabular</td><td>With calibrated throughput</td><td>Medium</td></tr>
-    <tr><td>Classical Tabular</td><td>With default throughput (no calibration)</td><td>Low</td></tr>
+    <tr><td>Classical Tabular</td><td>Benchmark defaults, &ge; 1M rows, known algorithm</td><td>Medium-low</td></tr>
+    <tr><td>Classical Tabular</td><td>Custom algorithm, or below the 1M-row regime</td><td>Low</td></tr>
   </tbody>
 </table>
+
+<p>For the Fine-Tuning pane&rsquo;s per-method confidence tiers, see <a href="#finetune-confidence">Section 4.11</a>.</p>
 
 <hr>
 
@@ -732,9 +866,9 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
     <tr><th>Model</th><th>Parameters</th><th>Tokens</th><th>~FLOPs</th><th>Source</th></tr>
   </thead>
   <tbody>
-    <tr><td>Llama 2 7B</td><td>7B</td><td>2T</td><td>8.4e19</td><td>Touvron et al. 2023</td></tr>
-    <tr><td>Llama 2 13B</td><td>13B</td><td>2T</td><td>1.6e20</td><td>Touvron et al. 2023</td></tr>
     <tr><td>Marin 8B</td><td>8B</td><td>1.6T</td><td>7.7e22</td><td>Marin Community 2025</td></tr>
+    <tr><td>Llama 2 7B</td><td>7B</td><td>2T</td><td>8.4e22</td><td>Touvron et al. 2023</td></tr>
+    <tr><td>Llama 2 13B</td><td>13B</td><td>2T</td><td>1.6e23</td><td>Touvron et al. 2023</td></tr>
     <tr><td>GPT-3 175B</td><td>175B</td><td>300B</td><td>3.2e23</td><td>Brown et al. 2020</td></tr>
     <tr><td>Chinchilla 70B</td><td>70B</td><td>1.4T</td><td>5.9e23</td><td>Hoffmann et al. 2022</td></tr>
     <tr><td>Marin 32B</td><td>32B</td><td>3.2T</td><td>6.1e23</td><td>Marin Community 2025</td></tr>
@@ -744,6 +878,10 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
     <tr><td>Llama 3 405B</td><td>405B</td><td>15T</td><td>3.6e25</td><td>Meta 2024</td></tr>
   </tbody>
 </table>
+
+<div class="warning-note">
+  <strong>Corrected 2026-10-14.</strong> Llama 2 7B and 13B previously carried 8.4e19 and 1.6e20 &mdash; both 1,000&times; too low, and the rows were sorted on those wrong values. The correct 6ND figures are 8.4e22 and 1.6e23, which is also why Llama 2 7B now sorts just above Marin 8B rather than at the bottom of the table.
+</div>
 
 <p>The row closest to your compute budget is <strong>highlighted</strong>. A &ldquo;vs Yours&rdquo; column shows the ratio of your FLOPs to each reference model&rsquo;s FLOPs, giving a quick sense of relative scale.</p>
 
@@ -793,19 +931,49 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
       <td>Networking, checkpointing, stragglers, and cluster fragmentation become major factors.</td>
     </tr>
     <tr>
-      <td>Training mode warning</td>
-      <td>Mode is not Full Pretraining</td>
-      <td>The 6ND formula is calibrated for full pretraining. SFT/LoRA/RLHF typically need far less compute.</td>
+      <td>Hyperscale warning</td>
+      <td>Required GPUs &gt;10,000</td>
+      <td>A multi-rack, multi-datacenter-class deployment with extreme operational complexity.</td>
     </tr>
     <tr>
-      <td>FP8 warning</td>
-      <td>FP8 precision selected</td>
-      <td>FP8 end-to-end training is experimental. Actual throughput may differ from peak-based estimates.</td>
+      <td>Optimistic MFU warning</td>
+      <td>MFU override &gt;60%</td>
+      <td>Exceeds typical achieved utilization; most production runs achieve 30&ndash;50%.</td>
+    </tr>
+    <tr>
+      <td>Training mode warning</td>
+      <td>Mode is not Full Pretraining</td>
+      <td>The 6ND formula is calibrated for full pretraining. SFT/LoRA/RLHF typically need far less compute &mdash; use the <a href="#finetuning">Fine-Tuning Calculator</a> instead.</td>
+    </tr>
+    <tr>
+      <td>FP8 / FP4 warning</td>
+      <td>FP8 or FP4 precision selected</td>
+      <td>End-to-end low-precision training is experimental. Actual throughput may differ from peak-based estimates.</td>
+    </tr>
+    <tr>
+      <td>Precision MFU factor note</td>
+      <td>FP8 or FP4 precision selected</td>
+      <td>States the MFU factor applied (0.70 or 0.50) and that the estimate does not assume the full peak-ratio speedup &mdash; measured FP8 wall-clock gain is 1.3&ndash;1.5&times;, not 2&times;.</td>
+    </tr>
+    <tr>
+      <td>FP4 recipe note</td>
+      <td>FP4 precision selected</td>
+      <td>NVFP4 pretraining is validated (NVIDIA pretrained a 12B hybrid Mamba-Transformer on 10T tokens in NVFP4, matching an FP8 baseline) but is not a drop-in flag: it needs Random Hadamard transforms, 2-D quantization, stochastic rounding and selective high-precision layers.</td>
+    </tr>
+    <tr>
+      <td>Missing precision peak</td>
+      <td>Selected SKU publishes no dense peak at the selected precision</td>
+      <td>The estimate falls back to a higher-precision peak, so the throughput shown is not a speedup for that precision &mdash; only the MFU penalty applies.</td>
     </tr>
     <tr>
       <td>H200 note</td>
       <td>H200 selected</td>
       <td>Reminder that H200 has the same raw BF16 peak as H100. Advantage is memory and bandwidth.</td>
+    </tr>
+    <tr>
+      <td>B300 note</td>
+      <td>B300 selected at a precision other than FP4</td>
+      <td>B300&rsquo;s dense BF16 and FP8 peaks are identical to B200&rsquo;s. At this precision it delivers no compute gain.</td>
     </tr>
     <tr>
       <td>Memory bound exceeds compute</td>
@@ -887,17 +1055,57 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
     <tr>
       <td>No calibration</td>
       <td>Throughput coefficient = 0</td>
-      <td>Using rough defaults. Calibrate with a known run for better accuracy.</td>
+      <td>Benchmark-derived defaults are accurate to roughly 2&ndash;3&times; at best. Calibrate with a known run.</td>
     </tr>
     <tr>
-      <td>High search multiplier</td>
-      <td>folds &times; trials &gt; 50</td>
-      <td>Search dominates total time. Consider Bayesian optimization or early stopping.</td>
+      <td>Custom algorithm</td>
+      <td>Algorithm is Custom</td>
+      <td>No published benchmark exists; the default is a mid-range placeholder. Calibrate it.</td>
+    </tr>
+    <tr>
+      <td>Search note</td>
+      <td>folds &times; trials &gt; 100</td>
+      <td>The search is most of the wall-clock. Normal &mdash; TabArena uses 200 configs &times; 8 inner folds = 1,600 fits per model per outer fold. Diminishing returns land around 50&ndash;100 trials.</td>
+    </tr>
+    <tr>
+      <td>Search dominates</td>
+      <td>folds &times; trials &gt; 500</td>
+      <td>Prune the search (Hyperband / early stopping) rather than buying hardware.</td>
+    </tr>
+    <tr>
+      <td>GPU likely slower</td>
+      <td>GPU selected and predicted speedup &lt; 0.95&times;</td>
+      <td>GPU will likely be SLOWER here. GPU histogram building only pays off above roughly 1M rows of dense numeric features; a 100K-row dataset can train 2&ndash;3&times; slower on GPU.</td>
+    </tr>
+    <tr>
+      <td>GPU gains little</td>
+      <td>GPU selected and predicted speedup &lt; 2&times;</td>
+      <td>The published 5&ndash;10&times; GPU speedup applies to XGBoost and CatBoost on &ge; 1M rows of dense numeric features, not to every library or every dataset size.</td>
     </tr>
     <tr>
       <td>CPU selected</td>
-      <td>CPU implementation</td>
-      <td>GPU implementations are typically 5&ndash;10x faster.</td>
+      <td>CPU implementation and a GPU would not be slower</td>
+      <td>Names the measured speedup for <em>this</em> algorithm &mdash; XGBoost 13.4&times;, CatBoost 9.7&times;, cuML random forest 3&ndash;26&times;, LightGBM only 0.5&ndash;1.5&times; &mdash; and the GPU wall-clock for comparison.</td>
+    </tr>
+    <tr>
+      <td><strong>Sparse / wide data</strong></td>
+      <td>Columns &gt; 500</td>
+      <td>If any columns are one-hot encoded or otherwise sparse, the <code>rows &times; columns</code> work model breaks down by up to ~100&times;, because Exclusive Feature Bundling collapses sparse columns. This estimate assumes dense numeric features and will be a large over-estimate otherwise.</td>
+    </tr>
+    <tr>
+      <td>Below the measured regime</td>
+      <td>Rows &lt; 1,000,000</td>
+      <td>GPU efficiency is scaled down by log-interpolation, which is derived rather than directly measured. Treat the GPU number as indicative only.</td>
+    </tr>
+    <tr>
+      <td>VRAM note</td>
+      <td>Always</td>
+      <td>VRAM is almost never the binding constraint for GBDTs: a binned matrix is roughly <code>rows &times; columns</code> bytes. If memory binds, the answer is external memory on one device, not more GPUs.</td>
+    </tr>
+    <tr>
+      <td>Empirical-model note</td>
+      <td>Always</td>
+      <td>Classical tabular estimates use empirical throughput models, not theoretical FLOPs. Results depend heavily on implementation, data characteristics and hardware.</td>
     </tr>
   </tbody>
 </table>
@@ -929,6 +1137,10 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
   <strong>Key concept:</strong> API cost scales linearly with volume; self-host cost is fixed by GPU provisioning &mdash; the crossover is the breakeven point.
 </div>
 
+<div class="warning-note">
+  <strong>Pricing data is stale &mdash; check the dates.</strong> The three data files behind this pane &mdash; <code>api-pricing.json</code>, <code>cloud-gpu-pricing.json</code> and <code>self-host-throughput.json</code> &mdash; all carry <code>lastUpdated: 2026-06-01</code>. API token prices and cloud GPU rates move faster than that, usually downward. Treat every dollar figure here as <strong>indicative of relative shape</strong>, not as a quote: the breakeven <em>mechanism</em> holds, the absolute numbers do not. The last-updated date is shown in the pane. Verify current prices with your provider before committing, and note that the Fine-Tuning pane&rsquo;s costs read from the same cloud GPU file.
+</div>
+
 <hr>
 
 <!-- ============================================================ -->
@@ -936,10 +1148,19 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
 
 <p>The Inference Calculator helps you decide whether to serve an LLM via a managed API (buy) or self-host on your own GPUs (build). It estimates monthly costs for both approaches and identifies the breakeven point.</p>
 
+<h4>Cost Period Conventions</h4>
+
+<p>A &ldquo;month&rdquo; is <strong>365/12 = 30.4167 days</strong>, not a flat 30. This matters because it makes the monthly and annual figures consistent with each other:</p>
+
+<pre><code>monthly = daily * 30.4167
+annual  = 12 * monthly        (exactly equal to daily * 365)</code></pre>
+
+<p>Under the previous flat-30 convention, <code>12 &times; monthly</code> came to 360 days and quietly understated the annual figure by 1.4%. Every monthly cost in this pane &mdash; API spend and self-hosted GPU spend alike &mdash; uses 30.4167 days, and the breakeven calculation divides back by the same constant, so the two sides of the comparison stay on one calendar.</p>
+
 <hr>
 
 <!-- ============================================================ -->
-<h3 id="use-case-presets">3.2 Use-Case Presets</h3>
+<h3 id="use-case-presets">3.2 Use-Case Presets (with Gear Icon Customization)</h3>
 
 <p>Select a use-case preset to auto-fill typical input and output token counts per request. You can always override the values after selecting a preset, or use the gear icon to customize.</p>
 
@@ -1027,7 +1248,720 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
 <hr>
 
 <!-- ============================================================ -->
-<h2 id="custom-gpus">4. Custom GPUs</h2>
+<h2 id="finetuning">4. Fine-Tuning Calculator</h2>
+
+<p>The Fine-Tuning Calculator estimates accelerator requirements for adapting an existing open-weight model. It answers a different question from the Training Calculator: not &ldquo;how many GPUs to hit my deadline&rdquo; but <strong>&ldquo;does this fit on the GPUs I can actually get, and what does that cost me?&rdquo;</strong></p>
+
+<div class="note">
+  <strong>Who it&rsquo;s for:</strong> ML engineers choosing between full fine-tuning, LoRA and QLoRA; infrastructure teams sizing a node for a fine-tuning service; technical leaders checking whether a 70B adaptation needs one GPU or three nodes.<br>
+  <strong>Key concept:</strong> minimum GPUs = ceil(model state / usable HBM per GPU). Memory sets the GPU count; compute then sets the wall-clock on that configuration.
+</div>
+
+<p><strong>Why memory-first?</strong> In pretraining the memory lower bound is roughly 470&times; slacker than the compute bound and never binds &mdash; which is why the Training Calculator treats it as a side check. In fine-tuning it <em>is</em> the question. On one fixed workload, a 70B model is 1,224 GB and 24 H100s under full fine-tuning, and 47 GB on a single H100 under QLoRA. Same arithmetic, inverted dominance.</p>
+
+<p><strong>What it is for:</strong></p>
+<ul>
+  <li>Deciding whether a given model and method fit on the hardware you can obtain</li>
+  <li>Comparing full fine-tuning, LoRA, QLoRA, DoRA, DPO, ORPO, GRPO and PPO on one workload</li>
+  <li>Finding the minimum deployable GPU count, and seeing when it crosses a node boundary</li>
+  <li>Choosing a LoRA rank and target set against an exact adapter-parameter count</li>
+  <li>Sizing activation memory for long-context SFT</li>
+  <li>Sanity-checking a vendor or team estimate for a fine-tuning job</li>
+</ul>
+
+<p><strong>What it is NOT for:</strong></p>
+<ul>
+  <li>Predicting whether the fine-tune will <em>work</em> &mdash; no quality, loss, or eval prediction</li>
+  <li>Multimodal / vision fine-tuning (image-patch activation accounting is not modelled)</li>
+  <li>Embedding or reranker fine-tuning (contrastive losses with large in-batch negatives have a different memory shape)</li>
+  <li>Agentic RL with tool calls or environment steps, where environment latency rather than decode binds</li>
+  <li>End-to-end RL post-training wall-clock &mdash; the GRPO and PPO rows cover the training side only (<a href="#rl-post-training">Section 4.9</a>)</li>
+  <li>Spot-interruption or failure modelling</li>
+  <li>Multi-adapter serving economics (an inference question, not a fine-tuning one)</li>
+  <li>Detailed parallelism planning beyond the DDP / ZeRO-2 / FSDP-ZeRO-3 choice</li>
+</ul>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-quick-start">4.1 Quick Start</h3>
+
+<ol>
+  <li>Pick a <strong>base model</strong> (21 catalogued open-weight models, or Custom).</li>
+  <li>Pick a <strong>goal preset</strong> &mdash; it fills examples, tokens per example, epochs, sequence length, method and LoRA rank.</li>
+  <li>Read the <strong>method &times; GPU matrix</strong>. Each cell gives GPU count, fit state, model state, wall-clock and cost.</li>
+  <li>Click a cell to open its memory breakdown, warnings and calculation trace.</li>
+  <li>Adjust the raw workload and configuration fields underneath; every preset field stays editable, and editing one clears the preset.</li>
+</ol>
+
+<p>Defaults on first load: Llama 3.1 8B, LoRA r=16 over all linear projections, 2,000 examples &times; 800 tokens &times; 3 epochs, sequence length 2,048, micro-batch 1, packing on, AdamW (fp32 master), BF16 base weights, gradient checkpointing on, FSDP/ZeRO-3, availability 95%, overhead 1.10&times;, on-demand pricing, with H100 SXM / H200 SXM / B200 SXM as the matrix columns.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="method-matrix">4.2 Reading the Method &times; GPU Matrix</h3>
+
+<p>The matrix is the pane&rsquo;s primary output: methods down the rows, selected GPU SKUs across the columns. Each cell shows four things &mdash; GPU count, fit state, total model state, and then wall-clock and cost on the bottom line.</p>
+
+<h4>Fit states</h4>
+<table>
+  <thead>
+    <tr><th>State</th><th>Meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><strong>FITS</strong></td><td>All model state holds on one GPU. No sharding needed.</td></tr>
+    <tr><td><strong>SHARDED</strong></td><td>State is split across the listed GPU count using the selected strategy (FSDP/ZeRO-3 or ZeRO-2).</td></tr>
+    <tr><td><strong>OOM</strong></td><td>Infeasible at any practical GPU count &mdash; either DDP was selected (which replicates rather than shards, so one GPU must hold everything), or the per-GPU fixed terms alone exceed usable memory.</td></tr>
+  </tbody>
+</table>
+
+<p>The GPU count shown is the <strong>memory floor</strong>, rounded up to a deployable count: 1, 2, 4, 8, then whole nodes of 8.</p>
+
+<h4>Why every cell shows GPU count, wall-clock <em>and</em> cost</h4>
+
+<p>Because no one of them tells the truth on its own.</p>
+
+<p><strong>Wall-clock alone inverts the ranking.</strong> Full fine-tuning finishes sooner than QLoRA on the same workload &mdash; not because it is more efficient, but because its memory floor forces it onto 24&times; more GPUs. Read the time column without the GPU column and you will conclude that the most expensive method is the fastest, which is true and useless.</p>
+
+<p><strong>Cost alone flattens the comparison</strong>, because on a fixed workload the total bill is nearly method-invariant. Billed by the GPU-hour, <code>cost ~= total_FLOPs / (MFU &times; availability)</code>: GPU count cancels against wall-clock, and the method only moves FLOPs per token between <code>8N</code> and <code>6N</code>. The engine&rsquo;s own output on a fixed 70B workload spreads just <strong>1.75&times;</strong> in cost.</p>
+
+<div class="warning-note">
+  What genuinely varies is <strong>memory footprint and minimum GPU count &mdash; 24&ndash;27&times;</strong>. That is the feasibility question this pane exists to answer, and the reason a single-config card could not replace the matrix.
+</div>
+
+<h4>Worked example: Llama 3.1 70B, one fixed workload</h4>
+
+<p>2,000 examples &times; 800 tokens &times; 3 epochs, sequence length 2,048, micro-batch 1, packing on, gradient checkpointing on, AdamW (fp32 master), FSDP/ZeRO-3, availability 95%, overhead 1.10&times;, on H100 SXM at $3.00/GPU-hour:</p>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Model state</th><th>Min GPUs</th><th>Fit</th><th>Wall-clock</th><th>GPU-hours</th><th>Cost</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Full fine-tune</td><td>1,224 GB</td><td>24</td><td>SHARDED</td><td>0.17 h</td><td>4.06</td><td>$12.17</td></tr>
+    <tr><td>LoRA r=16</td><td>161 GB</td><td>4</td><td>SHARDED</td><td>0.58 h</td><td>2.32</td><td>$6.95</td></tr>
+    <tr><td>QLoRA r=16</td><td>47 GB</td><td>1</td><td>FITS</td><td>2.32 h</td><td>2.32</td><td>$6.95</td></tr>
+  </tbody>
+</table>
+
+<p>Memory spreads <strong>26&times;</strong>, minimum GPU count <strong>24&times;</strong>, wall-clock <strong>14&times; the other way</strong> &mdash; and cost <strong>1.75&times;</strong>. The method choice is about what hardware you can obtain and how long you are willing to wait, not about the bill. The pane surfaces this as an assumption chip (&ldquo;Cost is near method-invariant&rdquo;) and in the note above the matrix, so it does not have to be inferred.</p>
+
+<h4>Cost columns and missing prices</h4>
+
+<p>Cost is <code>per-GPU hourly rate &times; GPU count &times; wall-clock hours</code>. The rate comes from <code>cloud-gpu-pricing.json</code>, taken as the cheapest listed instance price divided by that instance&rsquo;s GPU count, at the selected pricing tier (on-demand, reserved, or spot).</p>
+
+<p>Only H100 SXM currently has a matching row in that file. Every other column &mdash; H200, B200, B300, the AMD, Google, AWS and Intel parts &mdash; shows an em dash for cost rather than borrowing a rate from a different accelerator. The pane names which columns are unpriced underneath the matrix.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="methods-reference">4.3 Methods Reference</h3>
+
+<p>Eight methods ship as matrix rows. <code>N</code> is <strong>active</strong> parameters for compute and <strong>total</strong> parameters for memory (see <a href="#finetune-moe">Section 4.8</a>).</p>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>FLOPs/token</th><th>Trainable</th><th>Model-state bytes</th><th>Throughput factor</th><th>Confidence</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Full fine-tune</td><td><code>6N</code></td><td>all</td><td><code>N_total &times; 2</code> weights + <code>16 B</code> per param (AdamW fp32)</td><td>1.00</td><td>High</td></tr>
+    <tr><td>LoRA</td><td><code>4N</code></td><td>adapters only</td><td><code>N_total &times; 2</code> + <code>16 B</code> per adapter param</td><td>1.00</td><td>High</td></tr>
+    <tr><td>QLoRA</td><td><code>4N</code></td><td>adapters only</td><td><code>N_total &times; 0.5</code> (NF4) + <code>16 B</code> per adapter param</td><td>0.75</td><td>Medium-low</td></tr>
+    <tr><td>DoRA</td><td><code>4N</code></td><td>adapters &times; 1.01</td><td>as LoRA, plus magnitude vectors</td><td>0.90</td><td>Medium</td></tr>
+    <tr><td>DPO</td><td><code>6N</code></td><td>all</td><td>as full FT, plus a frozen reference copy when resident</td><td>1.00</td><td>Medium-low</td></tr>
+    <tr><td>ORPO</td><td><code>6N</code></td><td>all</td><td>as full FT (reference-free)</td><td>1.00</td><td>Medium-low</td></tr>
+    <tr><td>GRPO</td><td><code>6N</code></td><td>all</td><td>as full FT, plus a reference copy when <code>beta &gt; 0</code></td><td>1.00</td><td>Low</td></tr>
+    <tr><td>PPO</td><td><code>6N</code></td><td>all</td><td>as full FT, plus reward + reference copies and a <strong>trainable</strong> critic</td><td>1.00</td><td>Low</td></tr>
+  </tbody>
+</table>
+
+<p>Gradient checkpointing, which defaults on, adds <code>+2N</code> to every row: full fine-tuning becomes <code>8N</code> per token and LoRA <code>6N</code>.</p>
+
+<h4>Why LoRA is 4N, not 6N</h4>
+
+<p>The frozen base needs no weight gradients. A standard backward pass costs <code>4bmn</code> per linear layer; LoRA&rsquo;s costs <code>2bmn + 4br(m+n)</code>, and with <code>r</code> far smaller than <code>m</code> and <code>n</code> the adapter term vanishes &mdash; so <strong>LoRA&rsquo;s backward pass costs the same as its forward pass</strong>. <code>2N</code> forward + <code>2N</code> backward = <code>4N</code>.</p>
+
+<p>This is not a guess. Back-solving achieved MFU from NVIDIA NeMo&rsquo;s published LoRA throughputs under the <code>4N</code> model reproduces NeMo&rsquo;s own reported MFU to within 2.4 percentage points across four configurations, which validates the FLOP model and the MFU defaults at the same time.</p>
+
+<h4>Objective multipliers</h4>
+
+<p>DPO and ORPO process two completions per preference pair (chosen and rejected), so they multiply the token count rather than the FLOPs per token.</p>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Reference handling</th><th>Multiplier on tokens processed</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>DPO</td><td>Reference logprobs precomputed offline (default)</td><td>2.00&times;</td></tr>
+    <tr><td>DPO</td><td>Reference model resident</td><td>2.67&times;</td></tr>
+    <tr><td>ORPO</td><td>Reference-free</td><td>2.00&times;</td></tr>
+    <tr><td>All others</td><td>&mdash;</td><td>1.00&times;</td></tr>
+  </tbody>
+</table>
+
+<p>Precomputing the DPO reference logprobs in one offline pass both removes the reference model from memory and drops the extra reference forward from every step. It is standard practice and defaults on.</p>
+
+<h4>Auxiliary model copies</h4>
+<table>
+  <thead>
+    <tr><th>Method</th><th>Frozen copies</th><th>Trainable copies</th><th>Multiplier vs full-FT model state</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>SFT / full FT / LoRA family</td><td>0</td><td>0</td><td>1.00&times;</td></tr>
+    <tr><td>DPO, reference precomputed</td><td>0</td><td>0</td><td>1.00&times;</td></tr>
+    <tr><td>DPO, reference resident</td><td>1</td><td>0</td><td>1.125&times;</td></tr>
+    <tr><td>ORPO</td><td>0</td><td>0</td><td>1.00&times;</td></tr>
+    <tr><td>GRPO, <code>beta = 0</code> (the TRL default)</td><td>0</td><td>0</td><td>1.00&times;</td></tr>
+    <tr><td>GRPO, <code>beta &gt; 0</code></td><td>1</td><td>0</td><td>1.125&times;</td></tr>
+    <tr><td>PPO</td><td>2 (reward, reference)</td><td>1 (critic)</td><td>2.25&times;</td></tr>
+  </tbody>
+</table>
+
+<p>A frozen copy costs only its weight bytes &mdash; it is inference-only and quantizable or offloadable. The PPO critic is trainable and carries its own gradients, master copy and optimizer moments.</p>
+
+<h4>QLoRA throughput</h4>
+
+<p>QLoRA dequantizes every 4-bit weight to 16-bit on each matmul. Benchmark studies put the penalty at 0.7&ndash;0.8&times; LoRA throughput; some report far less with recent bitsandbytes. The engine applies <strong>0.75</strong> and says so in a warning. This is the single widest assumption in the supervised path and the reason QLoRA carries medium-low confidence.</p>
+
+<p>Note that the QLoRA row always forces NF4 base weights regardless of the Base weight precision you selected &mdash; that is what QLoRA <em>is</em>. The other rows keep your selection.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="goal-presets">4.4 Goal Presets</h3>
+
+<p>Users have &ldquo;2,000 support transcripts&rdquo;, not a token count. Presets fill the raw workload and method fields and nothing else; every field stays visible and editable, and editing one clears the preset.</p>
+
+<table>
+  <thead>
+    <tr><th>Preset</th><th>Examples</th><th>Avg tokens</th><th>Epochs</th><th>Seq len</th><th>Method</th><th>Basis</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Style / tone adoption</td><td>1,000</td><td>600</td><td>3</td><td>1,024</td><td>LoRA r=16</td><td>LIMA: 1,000 curated pairs sufficed for strong alignment</td></tr>
+    <tr><td>Narrow task (classification)</td><td>500</td><td>400</td><td>3</td><td>512</td><td>QLoRA r=16</td><td>100&ndash;500 examples is the published floor</td></tr>
+    <tr><td>Instruction following</td><td>10,000</td><td>800</td><td>2</td><td>2,048</td><td>LoRA r=32</td><td>Broad tasks need 5&ndash;20K examples</td></tr>
+    <tr><td>Tool use / function calling</td><td>2,000</td><td>1,200</td><td>3</td><td>4,096</td><td>LoRA r=32</td><td>~2K traces at r=32</td></tr>
+    <tr><td>Reasoning distillation</td><td>20,000</td><td>4,000</td><td>2</td><td>8,192</td><td>LoRA r=64</td><td>Long outputs drive sequence length, not example count</td></tr>
+    <tr><td>Domain adaptation</td><td>200,000</td><td>2,000</td><td>1</td><td>4,096</td><td>Full fine-tune</td><td>Continued-pretraining regime: 10^8&ndash;10^10 tokens, 1 epoch</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>Epochs: 1&ndash;3 is standard.</strong> Beyond 5 the model starts memorizing exact phrasings, and the calculator warns. A fine-tuning set of 10^2&ndash;10^5 examples is vanishingly small against a multi-trillion-token pretraining corpus, so more passes buy memorization rather than generalization.
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-inputs">4.5 Input Reference</h3>
+
+<p>The pane is laid out as five numbered sections, matching the order of the calculation.</p>
+
+<h4>1. Which model?</h4>
+<table>
+  <thead>
+    <tr><th>Input</th><th>Description</th><th>Default</th><th>Notes</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Base model</td><td>Catalogued open-weight model, grouped by family</td><td>Llama 3.1 8B</td><td>21 models plus Custom; MoE entries show total/active in the option label</td></tr>
+    <tr><td>Total parameters (B)</td><td>Custom only</td><td>8</td><td>Memory follows this</td></tr>
+    <tr><td>Active parameters (B)</td><td>Custom only</td><td>8</td><td>Compute follows this</td></tr>
+    <tr><td>Layers, Hidden size, FFN dim, KV heads, Head dim</td><td>Custom only, each optional</td><td>blank</td><td>Blank means &ldquo;unknown&rdquo;: the engine estimates it and lowers confidence rather than computing adapter parameters off a plausible-looking wrong number</td></tr>
+  </tbody>
+</table>
+
+<h4>2. What are you teaching it?</h4>
+<p>The six goal presets of <a href="#goal-presets">Section 4.4</a>.</p>
+
+<h4>3. Workload</h4>
+<table>
+  <thead>
+    <tr><th>Input</th><th>Description</th><th>Default</th><th>Presets</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Training examples</td><td>Number of training samples</td><td>2,000</td><td>500, 1K, 2K, 10K, 20K, 200K</td></tr>
+    <tr><td>Avg tokens / example</td><td>Mean length of one example</td><td>800</td><td>&mdash;</td></tr>
+    <tr><td>Epochs</td><td>Passes over the dataset</td><td>3</td><td>1, 2, 3, 5</td></tr>
+    <tr><td>Sequence length</td><td>Max sequence length</td><td>2,048</td><td>512, 1K, 2K, 4K, 8K, 16K</td></tr>
+    <tr><td>Micro-batch size (per GPU)</td><td>Sequences per forward pass per GPU</td><td>1</td><td>&mdash;</td></tr>
+    <tr><td>Sequence packing</td><td>Concatenate samples to eliminate padding</td><td>On</td><td>On = 0.95 efficiency, off = 0.55</td></tr>
+  </tbody>
+</table>
+
+<p>Sequence length and micro-batch size are the <strong>only</strong> inputs that move activation memory, which is the only batch-dependent term in the whole memory model.</p>
+
+<h4>4. Method &amp; configuration</h4>
+<table>
+  <thead>
+    <tr><th>Input</th><th>Description</th><th>Default</th><th>Options</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Method</td><td>Selects the matrix row</td><td>LoRA</td><td>Full fine-tune, LoRA, QLoRA, DoRA, DPO, ORPO, GRPO, PPO</td></tr>
+    <tr><td>Optimizer</td><td>Sets master-copy and moment bytes</td><td>AdamW (fp32 master)</td><td>AdamW fp32/bf16 master, 8-bit Adam, Adafactor, SGD + momentum, LOMO</td></tr>
+    <tr><td>Base weight precision</td><td>Bytes per resident weight</td><td>BF16 (2 B/param)</td><td>BF16 2 B, FP8 1 B, NF4 4-bit 0.5 B</td></tr>
+    <tr><td>LoRA rank</td><td>Adapter rank; parameters scale linearly with it</td><td>16</td><td>8, 16, 32, 64, 128</td></tr>
+    <tr><td>LoRA targets</td><td>Which projections get adapters</td><td>All linear (q,k,v,o,gate,up,down)</td><td>All linear; Attention + output (q,k,v,o); Attention only (q,v)</td></tr>
+    <tr><td>Sharding strategy</td><td>How state is distributed when it exceeds one GPU</td><td>FSDP / ZeRO-3</td><td>DDP (replicated, cannot reduce the floor), ZeRO-2, FSDP/ZeRO-3</td></tr>
+    <tr><td>Gradient checkpointing</td><td>Recompute activations</td><td>On</td><td>Trades <code>+2N</code> FLOPs/token for a large activation-memory saving</td></tr>
+    <tr><td>Precompute reference logprobs</td><td>DPO / ORPO only</td><td>On</td><td>Offline reference pass; removes the reference from memory</td></tr>
+    <tr><td>Availability</td><td>Useful wall-clock fraction</td><td>0.95</td><td>0.1&ndash;1.0</td></tr>
+    <tr><td>Overhead factor</td><td>Multiplier for non-overlapped overhead</td><td>1.10</td><td>&ge; 1.0</td></tr>
+    <tr><td>Pricing tier</td><td>Which rate column to bill at</td><td>On-demand</td><td>On-demand, Reserved, Spot</td></tr>
+  </tbody>
+</table>
+
+<p>LoRA rank and targets are inert for the non-PEFT methods, which train the full parameter set; the pane says so rather than silently ignoring them.</p>
+
+<h4>Optimizer bytes</h4>
+<table>
+  <thead>
+    <tr><th>Optimizer</th><th>Master copy</th><th>Moments</th><th>Full-FT model state</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>AdamW (fp32 master)</td><td>4 B/param</td><td>8 B/param</td><td><strong>16 B/param</strong> (2 weights + 2 gradients + 4 + 8)</td></tr>
+    <tr><td>AdamW (bf16 master)</td><td>2</td><td>4</td><td>10 B/param</td></tr>
+    <tr><td>8-bit Adam</td><td>2</td><td>2</td><td>8 B/param</td></tr>
+    <tr><td>Adafactor</td><td>2</td><td>2</td><td>8 B/param</td></tr>
+    <tr><td>SGD + momentum</td><td>2</td><td>4</td><td>10 B/param</td></tr>
+    <tr><td>LOMO (fused, no state)</td><td>0</td><td>0</td><td>4 B/param</td></tr>
+  </tbody>
+</table>
+
+<p>The two conventions in the literature &mdash; 12 versus 16 bytes per parameter for full fine-tuning &mdash; differ only on whether the FP32 master copy is counted separately. The calculation trace shows the breakdown so the number is auditable rather than asserted.</p>
+
+<p>LoRA-family adapters are FP32 in every mainstream implementation regardless of base precision, so each trainable adapter parameter costs 4 B weight + 4 B gradient + the optimizer moments &mdash; <strong>16 B/param under AdamW</strong>.</p>
+
+<h4>5. GPU columns</h4>
+<p>All 15 built-in SKUs from <a href="#gpu-skus">Section 2.9</a> are selectable as matrix columns. The defaults &mdash; H100 SXM (80 GB), H200 SXM (141 GB) and B200 SXM (180 GB) &mdash; are three distinct memory tiers, chosen so the fit column actually varies. Custom GPUs belong to the Training pane and do not appear here.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-catalog">4.6 Model Catalog</h3>
+
+<p>The catalog carries per-model architecture, not just a parameter count, because adapter parameters and activation memory both depend on the layer and hidden dimensions.</p>
+
+<p>Architecture dimensions are transcribed field by field from each model&rsquo;s own <code>config.json</code>, never from survey articles &mdash; surveys report parameter counts reliably and architecture dimensions only sporadically. <code>totalParameters</code> is the safetensors parameter total. For MoE entries, <code>ffnDim</code> is the per-expert <code>moe_intermediate_size</code> and <code>activeParameters</code> is the published per-token activated count.</p>
+
+<table>
+  <thead>
+    <tr><th>Family</th><th>Entries</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Llama</td><td>Llama 3 8B, Llama 3.1 8B / 70B / 405B, Llama 4 Scout 109B-A17B</td></tr>
+    <tr><td>Qwen</td><td>Qwen 2.5 7B / 32B / 72B, Qwen3 235B-A22B, Qwen3.8 27B</td></tr>
+    <tr><td>Mistral</td><td>Mistral 7B v0.3, Mistral Small 3 24B, Mixtral 8&times;7B, Mistral Small 4 119B-A6B</td></tr>
+    <tr><td>Gemma</td><td>Gemma 2 9B / 27B, Gemma 4 31B, Gemma 4 26B-A4B</td></tr>
+    <tr><td>Phi</td><td>Phi-4 14B</td></tr>
+    <tr><td>DeepSeek</td><td>DeepSeek-V3 671B-A37B</td></tr>
+    <tr><td>GLM</td><td>GLM-5.2 744B-A40B</td></tr>
+    <tr><td>Custom</td><td>user-supplied parameters and optional dimensions</td></tr>
+  </tbody>
+</table>
+
+<p>Catalog last updated <strong>2026-10-14</strong>.</p>
+
+<div class="note">
+  <strong>Verified vs unverified dimensions.</strong> Most entries are marked verified: their dimensions were confirmed against a published config and describe a uniform GQA + SwiGLU stack, so the exact adapter formula applies and full fine-tune / LoRA estimates can earn high confidence. Four entries &mdash; DeepSeek-V3, Mistral Small 4, GLM-5.2 and Qwen3.8 27B &mdash; are faithfully recorded but are <em>not</em> uniform GQA + SwiGLU stacks (latent attention, hybrid linear attention). The engine uses its fallback dimensions there, warns that they are unconfirmed, and caps confidence at medium.
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-math">4.7 The Math (Formulas)</h3>
+
+<h4>Memory decomposition</h4>
+<pre><code>M_weights   = N_total x b_w              b_w: BF16 2, FP8 1, NF4 0.5 bytes
+M_grads     = N_train x 2                (4 for LoRA adapters, which are FP32)
+M_optimizer = N_train x (master + moments)
+M_act       = see below
+M_aux       = frozen_copies x N_total x b_w
+            + trainable_copies x N_total x (b_w + 2 + master + moments)
+
+subtotal    = M_weights + M_grads + M_optimizer + M_act + M_aux
+M_overhead  = 1.5 GB + 0.08 x subtotal   (CUDA context, fragmentation, comm buffers)
+M_total     = subtotal + M_overhead</code></pre>
+
+<p><code>N_total</code> is every resident parameter including all MoE experts; <code>N_train</code> is what the method actually trains &mdash; the full parameter set, or adapter parameters only for LoRA, QLoRA and DoRA.</p>
+
+<p>The model reproduces the published VRAM anchors it was built against: 7B 88/20/8 GB, 14B 174/35/14, 32B 394/76/28, 70B 860/159/52 (full fine-tune / LoRA r=64 / QLoRA), MoE-30B-A3B 105/69/21.</p>
+
+<h4>Activation memory</h4>
+
+<p>FlashAttention is assumed &mdash; universal in 2026 fine-tuning stacks &mdash; so the quadratic <code>5as/h</code> attention-matrix term of Megatron&rsquo;s <code>sbh(34 + 5as/h)</code> drops out:</p>
+
+<pre><code>bs = micro_batch_size x sequence_length
+
+with checkpointing (default):  M_act = 2 x bs x d x L  +  34 x bs x d
+without checkpointing:         M_act = 34 x bs x d x L</code></pre>
+
+<p>The checkpointed form is the stashed layer boundaries plus the peak working set of the single layer being recomputed. Gradient checkpointing buys roughly a 40&ndash;60% activation-memory reduction for <code>+2N</code> FLOPs per token.</p>
+
+<h4>Capacity and the GPU floor</h4>
+<pre><code>usable_per_GPU = memory_GB x 1e9 x 0.85 - 1.5 GB
+
+M_total &lt;= usable_per_GPU                      -&gt; 1 GPU, FITS
+DDP and it does not fit                        -&gt; OOM (DDP replicates, it cannot shard)
+
+otherwise, with ZeRO-2 or FSDP/ZeRO-3:
+  shardable = M_weights + M_grads + M_optimizer + M_aux
+  per_GPU_fixed = M_act + 1.5 GB               (activations do not shard)
+  smallest n in {1, 2, 4, 8} with shardable/n + per_GPU_fixed &lt;= usable_per_GPU
+  beyond one node: n = ceil(ceil(shardable / (usable - per_GPU_fixed)) / 8) x 8</code></pre>
+
+<p>Activations are per-GPU and are deliberately excluded from the shardable pool &mdash; sharding model state does not shrink them.</p>
+
+<h4>LoRA adapter parameters</h4>
+
+<p>For a linear layer <code>d_in -&gt; d_out</code>, LoRA adds <code>A (r x d_in)</code> and <code>B (d_out x r)</code>, so <code>r(d_in + d_out)</code> parameters. Over a GQA transformer:</p>
+
+<pre><code>per_layer = r x [ (d + d)      q
+                + (d + d_kv)   k
+                + (d + d_kv)   v
+                + (d + d)      o
+                + (d + d_ffn)  gate
+                + (d + d_ffn)  up
+                + (d_ffn + d)  down ]
+
+N_adapter = L x per_layer
+
+all linear:         all seven projections
+attention + output: q, k, v, o
+attention only:     q, v
+DoRA:               N_adapter x 1.01   (magnitude vectors)</code></pre>
+
+<p>Validation: Llama 3 8B (L=32, d=4096, d_kv=1024, d_ffn=14336) at r=16 all-linear yields <strong>41,943,040</strong> adapter parameters &mdash; PEFT&rsquo;s own reported figure for that configuration.</p>
+
+<h4>Architecture fallback</h4>
+
+<p>When the catalog has no dimensions &mdash; a Custom model with the optional fields left blank &mdash; the engine estimates them from the parameter count, using the empirical <code>d ~= 128L</code> aspect ratio observed across the Llama 3 family. With <code>N = 12Ld^2</code> and <code>d = 128L</code>, <code>N = 196,608 L^3</code>:</p>
+
+<pre><code>L     = round( (N_active / 196,608)^(1/3) )
+d     = 128 x L
+d_ffn = 3.5 x d
+d_kv  = 0.2 x d</code></pre>
+
+<div class="warning-note">
+  <strong>Accuracy caveat.</strong> This is a shape heuristic, not a lookup. It gives L=34 for 8B (actual 32), L=71 for 70B (actual <strong>80</strong>), and L=127 for 405B (actual 126). The 70B case is 11% low. The engine warns whenever the fallback is used and states that adapter-parameter and activation estimates then carry <strong>&plusmn;40%</strong> uncertainty. Supply the real layer count and hidden size if you have them.
+</div>
+
+<h4>Compute and wall-clock</h4>
+<pre><code>flops_per_token  = (4 if LoRA/QLoRA/DoRA else 6) x N_active
+                 + (2 x N_active if gradient checkpointing)
+
+dataset_tokens   = examples x avg_tokens_per_example
+tokens_processed = dataset_tokens x epochs x objective_multiplier / packing_efficiency
+total_FLOPs      = tokens_processed x flops_per_token
+
+effective_MFU    = base_MFU x method_factor x scaling_efficiency
+sustained        = bf16_dense_peak x effective_MFU x availability
+wall_clock_hours = total_FLOPs x overhead_factor / (GPUs x sustained) / 3600
+cost             = hourly_rate_per_GPU x GPUs x wall_clock_hours</code></pre>
+
+<table>
+  <thead>
+    <tr><th>Term</th><th>Values</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>base_MFU</code> by scale</td><td>0.40 single GPU, 0.30 sharded within one node (2&ndash;8), 0.27 multi-node</td></tr>
+    <tr><td><code>method_factor</code></td><td>1.00, except QLoRA 0.75 and DoRA 0.90</td></tr>
+    <tr><td><code>scaling_efficiency</code></td><td>1.0 up to 8 GPUs, then <code>0.90^log2(GPUs/8)</code></td></tr>
+    <tr><td><code>objective_multiplier</code></td><td>DPO 2.00 (precomputed reference) or 2.67 (resident), ORPO 2.00, all others 1.00</td></tr>
+    <tr><td><code>packing_efficiency</code></td><td>0.95 packed, 0.55 unpacked</td></tr>
+  </tbody>
+</table>
+
+<p><strong>Fine-tuning MFU is lower than pretraining&rsquo;s</strong> &mdash; the Training pane&rsquo;s NVIDIA defaults sit at 0.39&ndash;0.42 (<a href="#gpu-skus">Section 2.9</a>) &mdash; because fine-tuning runs smaller batches and shorter sequences and so utilizes the hardware less well. The three values were back-solved from NeMo&rsquo;s published throughputs; the scaling efficiency was measured from NeMo&rsquo;s 8-to-16 GPU rows (70B LoRA 90.2%, 32B 92.1%).</p>
+
+<div class="note">
+  <strong>Throughput always uses the BF16 dense peak</strong>, even when the base weight precision is FP8 or NF4. Quantization in this pane buys <em>memory</em>, not speed &mdash; and for QLoRA it costs speed, via the 0.75 factor.
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-moe">4.8 MoE Models</h3>
+
+<p>For a sparse mixture-of-experts model the two parameter counts do different jobs, and conflating them is the most common sizing error on 2026 open-weight models:</p>
+
+<ul>
+  <li><strong>Memory follows <code>N_total</code>.</strong> Every expert and the router stay resident. There is no &ldquo;only the active experts are loaded&rdquo; &mdash; routing is per token, so all of them must be in memory.</li>
+  <li><strong>Compute follows <code>N_active</code>.</strong> FLOPs per token are driven by the parameters actually activated.</li>
+</ul>
+
+<p>The gap is 3.6&times; on Mixtral 8&times;7B, 10.6&times; on Qwen3 235B-A22B, 18.1&times; on DeepSeek-V3 and 19.9&times; on Mistral Small 4 &mdash; so treating total as active overstates FLOPs by up to ~20&times; across this catalog, and more on the sparsest frontier models. The pane states the ratio for the selected model and the engine emits a warning naming both counts.</p>
+
+<div class="warning-note">
+  <strong>Do not 4-bit QLoRA an MoE.</strong> bitsandbytes lacks native MoE support, and quantization interferes with expert routing. Use BF16 LoRA instead. The engine emits this as a hard warning whenever an MoE model is combined with NF4 weights.
+</div>
+
+<p>MoE models in the catalog: Mixtral 8&times;7B (46.7B/12.9B), Qwen3 235B-A22B, Llama 4 Scout 109B-A17B, Gemma 4 26B-A4B, DeepSeek-V3 671B-A37B, Mistral Small 4 119B-A6B, GLM-5.2 744B-A40B.</p>
+
+<p>Note that the Training Calculator&rsquo;s effective-MFU formula also carries a MoE factor of 0.85 (<a href="#math">Section 2.4</a>), but the Training pane has no MoE input and always evaluates the dense factor of 1.00. The total-versus-active parameter split is modelled here, in the Fine-Tuning pane.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="rl-post-training">4.9 RL Post-Training (GRPO / PPO)</h3>
+
+<p>This is the least certain part of the calculator, and the documentation is going to be blunt about why.</p>
+
+<h4>What the matrix rows actually contain</h4>
+
+<p>The GRPO and PPO rows compute the <strong>training side only</strong> &mdash; the gradient steps over the tokens your workload describes, at <code>6N</code> per token, plus the auxiliary model copies of <a href="#methods-reference">Section 4.3</a>. They do not include rollout generation. Every GRPO and PPO cell carries this warning:</p>
+
+<div class="warning-note">
+  RL post-training cost is dominated by rollout generation (60&ndash;80% of step time), not gradient steps. This figure covers the training side only &mdash; use the RL rollout estimator for the generation cost and the inference/training GPU split. Treat as a lower bound.
+</div>
+
+<p>The rollout estimator referred to there is implemented in the engine and covered by tests, but <strong>is not yet surfaced as a panel in the user interface</strong>. The rest of this section documents how it behaves, because the constants and warnings below are the ones the engine will apply when it is wired up &mdash; and because the shape of the problem matters even if you only read the matrix.</p>
+
+<h4>RL post-training is an inference problem wearing a training problem&rsquo;s clothes</h4>
+
+<p>Each pane has one binding constraint. RL has two in series, and the inference one is bigger.</p>
+
+<table>
+  <thead>
+    <tr><th>Pane</th><th>Binding constraint</th><th>The question</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Training</td><td>Compute &times; deadline</td><td>How many GPUs to finish on time?</td></tr>
+    <tr><td>Fine-tuning</td><td>Memory capacity</td><td>Does the model state fit at all?</td></tr>
+    <tr><td>RL post-training</td><td><strong>Decode bandwidth first, memory capacity second</strong></td><td><strong>What fraction of my GPUs should be generating rather than training?</strong></td></tr>
+  </tbody>
+</table>
+
+<p>Rollout generation is <strong>60&ndash;80% of step time</strong>. Five independent measurements agree on that band for long chain-of-thought workloads; NeMo-RL&rsquo;s shorter-completion benchmarks put it at 52&ndash;64%. Both are right &mdash; the share rises with completion length and with a faster training backend.</p>
+
+<p>So the output is a <strong>GPU split</strong>, not a GPU count. The engine reports a recommended inference share of <code>r / (1 + r)</code>, where <code>r = T_generation / T_training</code>, and names the published fleets that bracket it: Olmo 3 32B used 20 inference to 8 training nodes (71%), ROLL Flash 24/16 (60%), OpenRLHF 70B 16 vLLM to 16 training (50%).</p>
+
+<p>Sanity bands for <code>r</code>, keyed on max completion length: 1.4 at &le; 1,024 tokens, 2.5 at &le; 4,096, 4.0 at &le; 16,384, 6.0 above that. The engine computes <code>r</code> from the decode roofline rather than looking it up, and warns when the computed value falls outside 0.8&ndash;8.</p>
+
+<h4>The KV cache usually exceeds the entire model state</h4>
+
+<p>This inverts the supervised case. In fine-tuning, model state is the binding memory term and activations are a modest add-on. In RL, the KV pool for <code>prompts_per_step &times; group_size</code> concurrent sequences is routinely larger than weights, gradients and optimizer state combined. The engine warns when the KV pool at full concurrency exceeds <code>N_total &times; 16</code> bytes:</p>
+
+<div class="warning-note">
+  For most RL configurations KV cache, not model state, is the binding memory term &mdash; the opposite of supervised fine-tuning. Consider FP8 KV (halves it) or fewer prompts per step.
+</div>
+
+<p>When the pool cannot hold every requested sequence at once, rollouts run in whole <strong>waves</strong>, and the engine says how many and how much VRAM full concurrency would want. Concurrency is also capped at the decode roofline knee (~280 on H100 BF16); past that, extra concurrency buys no throughput.</p>
+
+<p>Generation time is modelled as <strong>decode-bandwidth-bound</strong>, streaming weights plus live KV per decode step &mdash; not as <code>2N &times; tokens</code>, which would be optimistic by 10&ndash;30&times;. Prefill is modelled as compute-bound, with prefix caching on by default: all <code>G</code> completions in a GRPO group share the prompt prefix, so prefill runs once per prompt rather than once per completion, a <code>(G-1)/G</code> saving.</p>
+
+<p>For MLA models (DeepSeek-V3, GLM-5.2, Mistral Small 4) the KV cache is approximated at 1/8 of the GQA equivalent and explicitly flagged as unreliable.</p>
+
+<h4>The estimate is a floor</h4>
+
+<p>Two realization factors sit between the roofline and reality: <code>eta_decode = 0.60</code> for a standalone serving engine, and a further <code>eta_rollout = 0.45</code> specific to <em>synchronous RL</em> rollout. The second one is a construction, not a published figure. It was back-solved from two anchors that differ by exactly 2&times; &mdash; NeMo-RL 70B on 64 H100s (0.56) and a 7B vLLM run (0.28) &mdash; and no source states it at all. Its causes are real enough: the effective batch decays as sequences finish so the tail sequence gates the step; colocated engines get a small memory budget; CUDA graphs are re-captured after each weight refit.</p>
+
+<p>Compounding that, against <strong>the one well-documented 70B RL anchor we could source &mdash; T&uuml;lu 3&rsquo;s 2,880 GPU-hours</strong> &mdash; the model comes out 3.8&times; low. The engine rounds this in its own uncalibrated warning:</p>
+
+<div class="warning-note">
+  Against the one published 70B RL run we could source (T&uuml;lu 3, 2,880 GPU-hours) this model runs ~4&times; optimistic &mdash; treat the wall-clock as a FLOOR, not a prediction.
+</div>
+
+<p>Part of the gap is explicable (PPO versus GRPO, critic and reward model, a 2024-era stack, unknown step count) and part is not. Until a second 70B anchor exists, treat the GRPO wall-clock as a lower bound.</p>
+
+<h4>Calibration is the highest-value input you can supply</h4>
+
+<p>One number &mdash; <strong>observed seconds per step from your own stack, at your configuration</strong> &mdash; overrides the model entirely. It collapses the three dominant uncertainties (<code>eta_rollout</code>, policy MFU and the long-tail factor) into a single measured constant, and moves the estimate from low to medium confidence. The engine then reports your measurement, its own prediction, and the ratio between them, so you can see how far off the model was and in which direction. If you are going to supply one thing, supply this.</p>
+
+<h4>Tail gating</h4>
+
+<p>A strictly synchronous GRPO step pays for its <strong>slowest</strong> sequence: every completion in a wave must finish before the trainer starts. So the default gating is <code>max</code> &mdash; every sequence is assumed to run to the completion cap. That is correct for strict synchronous GRPO and it is the conservative end.</p>
+
+<p>But if completions genuinely cluster below the cap <em>and</em> your stack does in-flight replacement under continuous batching, the truth is nearer the mean. The same workload spans roughly <strong>10&times;</strong> between these two readings: NeMo-RL&rsquo;s 70B row has a mean completion of 398 tokens against a 4,096 cap.</p>
+
+<table>
+  <thead>
+    <tr><th>Gating</th><th>Completion length paid for</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>max</code> (default)</td><td>the full cap</td></tr>
+    <tr><td><code>mean</code></td><td>cap &times; mean completion ratio (default 0.35)</td></tr>
+    <tr><td><code>blend</code></td><td>cap &times; (0.5 + 0.5 &times; mean ratio)</td></tr>
+  </tbody>
+</table>
+
+<p>The engine warns when gating is <code>max</code> and the cap exceeds 4,096 tokens, naming the up-to-10&times; band rather than hiding it. The choice is exposed rather than guessed at, because guessing it would be the single largest unstated error in the output.</p>
+
+<h4>Weight sync and placement</h4>
+
+<p>Each step refits the trainer&rsquo;s weights into the inference engine. The engine models this at an effective <strong>10 GB/s</strong>, back-solved from NeMo-RL&rsquo;s measured 141 GB in 14 seconds at 70B on 64 GPUs. That figure covers the whole refit &mdash; re-sharding and CUDA-graph recapture &mdash; not just the NCCL collective, which alone is 20&ndash;500 ms. At 70B it is ~14 s per step: 70 minutes of pure weight shuffling over a 300-step run, and the strongest numerical argument for LoRA-based RL, which syncs only adapters and pays roughly zero.</p>
+
+<p>Placement matters for memory: a <strong>colocated</strong> engine holds a second weight copy and gets a small memory budget &mdash; TRL defaults <code>vllm_gpu_memory_utilization</code> to 0.3 against 0.90 standalone &mdash; so sleep/wake offload is what makes colocation viable at all. <strong>Disaggregated</strong> placement uses the standard 0.85 usable fraction.</p>
+
+<h4>PPO versus GRPO</h4>
+
+<p>PPO samples <strong>one</strong> completion per prompt rather than <code>G</code>, so its rollout is far smaller; but its training step is roughly 2.33&times; GRPO&rsquo;s (a critic forward and backward, plus a reward-model forward), so its <code>r</code> is roughly GRPO&rsquo;s halved. PPO also holds four model copies &mdash; policy, critic, reference, reward &mdash; two of them trainable. GRPO removes the critic via group-relative advantage, trading a compute-bound component for a bandwidth-bound one, which is exactly why the modern default is GRPO-family and why this pane has to be bandwidth-first.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-warnings">4.10 Warnings</h3>
+
+<h4>Fine-tuning warnings (shown on the selected cell)</h4>
+<table>
+  <thead>
+    <tr><th>Warning</th><th>Trigger</th><th>What To Do</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Does not fit, DDP</td>
+      <td>Fit state OOM with DDP sharding</td>
+      <td>DDP replicates model state, so one GPU must hold all of it. Switch to FSDP/ZeRO-3, or use a lower-memory method.</td>
+    </tr>
+    <tr>
+      <td>Does not fit at any count</td>
+      <td>Fit state OOM under sharding</td>
+      <td>Use QLoRA, a smaller rank, or shorter sequences.</td>
+    </tr>
+    <tr>
+      <td>Sharding required</td>
+      <td>Fit state SHARDED</td>
+      <td>Names the GPU count, the sharding strategy and the total model state.</td>
+    </tr>
+    <tr>
+      <td>MoE model</td>
+      <td>Catalogued model is MoE</td>
+      <td>Memory follows total parameters, compute follows active; experts and router stay resident.</td>
+    </tr>
+    <tr>
+      <td>MoE + 4-bit</td>
+      <td>MoE model with NF4 weights</td>
+      <td>Do not 4-bit QLoRA an MoE &mdash; bitsandbytes lacks native MoE support and quantization interferes with expert routing. Use BF16 LoRA.</td>
+    </tr>
+    <tr>
+      <td>Estimated dimensions</td>
+      <td>Catalog has no layers / hidden / FFN / KV dims</td>
+      <td>Dimensions were estimated from parameter count (<code>d ~= 128L</code>). Adapter and activation estimates carry &plusmn;40%.</td>
+    </tr>
+    <tr>
+      <td>Unverified dimensions</td>
+      <td>Dimensions present but not confirmed against a published config</td>
+      <td>Verify the layer count, hidden size and FFN dimension before committing hardware.</td>
+    </tr>
+    <tr>
+      <td>Memorization risk</td>
+      <td>Epochs &gt; 5</td>
+      <td>1&ndash;3 epochs is standard; fine-tuning sets are tiny against a pretraining corpus.</td>
+    </tr>
+    <tr>
+      <td>Below the example floor</td>
+      <td>Examples &lt; 100</td>
+      <td>Published guidance puts the minimum for a narrow task at 100&ndash;500.</td>
+    </tr>
+    <tr>
+      <td>Activation-dominated</td>
+      <td>Sequence length &gt; 16,384</td>
+      <td>Activations now dominate model state. Consider chunked or balance-packed long-context training.</td>
+    </tr>
+    <tr>
+      <td>Packing disabled</td>
+      <td>Sequence packing off</td>
+      <td>Padding waste assumed at 45%. Packing yields 3.8&times; at 32K and 7.3&times; at 128K sequence length versus naive batching.</td>
+    </tr>
+    <tr>
+      <td>QLoRA throughput</td>
+      <td>Method is QLoRA</td>
+      <td>The 0.75 dequantization factor is applied; sources span 0.7&ndash;0.8&times; and some report far less penalty with recent bitsandbytes.</td>
+    </tr>
+    <tr>
+      <td>Full FT footprint</td>
+      <td>Full fine-tune with AdamW (fp32 master)</td>
+      <td>States the full-FT state size against roughly what QLoRA would need on the same model.</td>
+    </tr>
+    <tr>
+      <td>RL lower bound</td>
+      <td>Method is GRPO or PPO</td>
+      <td>Rollout generation is 60&ndash;80% of step time and is not in this figure. Treat as a lower bound.</td>
+    </tr>
+    <tr>
+      <td>High LoRA rank</td>
+      <td>PEFT method with rank &gt; 128</td>
+      <td>Adapter parameters scale linearly with rank and the quality return flattens well below this.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h4>RL rollout estimator warnings (engine; not yet surfaced in the UI)</h4>
+<table>
+  <thead>
+    <tr><th>Warning</th><th>Trigger</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Weights exceed the inference pool</td><td>Model weights exceed usable memory on the inference GPUs</td></tr>
+    <tr><td>Rollouts run in waves</td><td>KV pool holds fewer concurrent sequences than requested; names the wave count and the VRAM full concurrency wants</td></tr>
+    <tr><td>Past the roofline knee</td><td>Concurrency exceeds ~280; decode is compute-bound beyond it</td></tr>
+    <tr><td>Ratio outside the band</td><td>Computed <code>r</code> falls outside 0.8&ndash;8</td></tr>
+    <tr><td>Rollout share</td><td>Always emitted; states the generation share and the published fleet splits that bracket it</td></tr>
+    <tr><td>KV exceeds model state</td><td>KV pool at full concurrency &gt; <code>N_total &times; 16</code> bytes</td></tr>
+    <tr><td>Colocated memory budget</td><td>Colocated placement; names the 0.3 vs 0.90 utilization default</td></tr>
+    <tr><td>Calibrated</td><td>An observed seconds-per-step was supplied; reports the ratio to the modelled figure</td></tr>
+    <tr><td>Uncalibrated floor</td><td>No observation supplied; names the T&uuml;lu 3 anchor and the ~4&times; optimism</td></tr>
+    <tr><td>Tail gating</td><td>Gating is <code>max</code> with a cap above 4,096 tokens; names the up-to-10&times; band</td></tr>
+    <tr><td>Weight refit cost</td><td>Non-PEFT method with refit &gt; 1 s/step; totals the minutes lost over the run</td></tr>
+    <tr><td>MLA / estimated KV</td><td>KV bytes derived from latent attention or estimated dimensions</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-confidence">4.11 Confidence Levels</h3>
+
+<p>Confidence is assigned per method, and then capped by how well the model&rsquo;s architecture is known.</p>
+
+<table>
+  <thead>
+    <tr><th>Method</th><th>Confidence</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Full fine-tune</td><td><strong>High</strong></td><td>Exact memory arithmetic; <code>6N</code> is well established</td></tr>
+    <tr><td>LoRA</td><td><strong>High</strong></td><td>Exact adapter enumeration; <code>4N</code> corroborated by the NeMo back-solve</td></tr>
+    <tr><td>DoRA</td><td><strong>Medium</strong></td><td>LoRA plus an approximated 1% magnitude-vector term and a 0.90 throughput factor</td></tr>
+    <tr><td>QLoRA</td><td><strong>Medium-low</strong></td><td>The dequantization throughput factor spans 0.7&ndash;0.8&times; across sources</td></tr>
+    <tr><td>DPO</td><td><strong>Medium-low</strong></td><td>Multiplier derived from exact pass counts, but memory depends on the reference strategy</td></tr>
+    <tr><td>ORPO</td><td><strong>Medium-low</strong></td><td>As DPO, reference-free</td></tr>
+    <tr><td>GRPO</td><td><strong>Low</strong></td><td>Rollout-dominated, and the figure shown covers the training side only</td></tr>
+    <tr><td>PPO</td><td><strong>Low</strong></td><td>As GRPO, plus critic and reward-model copies</td></tr>
+  </tbody>
+</table>
+
+<div class="note">
+  <strong>The architecture cap.</strong> If the selected model&rsquo;s dimensions were estimated from the parameter count, or are present but unconfirmed against a published config, full fine-tune and LoRA drop from High to <strong>Medium</strong> &mdash; the adapter and activation terms are then approximations. The methods already at Medium or below are unaffected.
+</div>
+
+<p>What is reliable, and what is not, within any single estimate:</p>
+
+<table>
+  <thead>
+    <tr><th>Quantity</th><th>Confidence</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Weights, gradients and optimizer memory</td><td>High &mdash; exact arithmetic</td></tr>
+    <tr><td>LoRA adapter parameters from catalog dimensions</td><td>High &mdash; exact enumeration</td></tr>
+    <tr><td>LoRA adapter parameters from the fallback</td><td>Medium &mdash; the shape heuristic is &plusmn;40%</td></tr>
+    <tr><td>Activation memory</td><td>Medium &mdash; implementation-dependent constants</td></tr>
+    <tr><td>FLOPs per token</td><td>High &mdash; <code>6N</code> / <code>4N</code>, corroborated by the NeMo back-solve</td></tr>
+    <tr><td>Wall-clock for LoRA and full fine-tuning in BF16</td><td>Medium &mdash; MFU validated against NeMo</td></tr>
+    <tr><td>QLoRA wall-clock</td><td>Medium-low</td></tr>
+    <tr><td>GRPO / PPO wall-clock and cost</td><td>Low &mdash; and a floor, not a prediction</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- ============================================================ -->
+<h3 id="finetune-export">4.12 Export</h3>
+
+<p>The Fine-Tuning pane has no export or share-URL support yet. The per-cell calculation trace is expandable and can be copied by hand. JSON, CSV, Markdown and share-URL export exist for the Training and Inference panes only &mdash; see <a href="#training-export">Section 2.16</a>.</p>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2 id="custom-gpus">5. Custom GPUs</h2>
 
 <ol>
   <li>Open the <strong>Custom GPU</strong> section in the left panel.</li>
@@ -1041,7 +1975,7 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
 <hr>
 
 <!-- ============================================================ -->
-<h2 id="worked-examples">5. Worked Examples</h2>
+<h2 id="worked-examples">6. Worked Examples</h2>
 
 <h3>70B LLM, 30 Days, H100</h3>
 
@@ -1084,7 +2018,7 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
 <hr>
 
 <!-- ============================================================ -->
-<h2 id="references">6. References</h2>
+<h2 id="references">7. References</h2>
 
 <ul>
   <li><strong>[R1]</strong> Hoffmann et al., <em>Training Compute-Optimal Large Language Models</em> (Chinchilla), arXiv:2203.15556, 2022. <a href="https://arxiv.org/abs/2203.15556">arxiv.org/abs/2203.15556</a></li>
@@ -1102,10 +2036,43 @@ estimated_time = 2.0e14 / 5.0e8 = 400,000 sec = 111 hours = 4.6 days</code></pre
   <li><strong>[R13]</strong> OpenRouter, <em>State of AI 2025</em>, 2025. <a href="https://openrouter.ai/state-of-ai">openrouter.ai/state-of-ai</a></li>
 </ul>
 
+<h4>Fine-Tuning and RL Post-Training</h4>
+<ul>
+  <li><strong>[R14]</strong> NVIDIA, <em>NeMo AutoModel Performance Summary</em> &mdash; the LoRA tok/s/GPU table used to back-solve the fine-tuning MFU defaults. <a href="https://docs.nvidia.com/nemo/automodel/latest/performance/performance-summary">docs.nvidia.com/nemo/automodel</a></li>
+  <li><strong>[R15]</strong> Dettmers et al., <em>QLoRA: Efficient Finetuning of Quantized LLMs</em>, arXiv:2305.14314. <a href="https://arxiv.org/pdf/2305.14314">arxiv.org/pdf/2305.14314</a></li>
+  <li><strong>[R16]</strong> Korthikanti et al., <em>Reducing Activation Recomputation in Large Transformer Models</em>, MLSys 2023 &mdash; the <code>sbh(34 + 5as/h)</code> activation model. <a href="https://proceedings.mlsys.org/paper_files/paper/2023/file/80083951326cf5b35e5100260d64ed81-Paper-mlsys2023.pdf">proceedings.mlsys.org</a></li>
+  <li><strong>[R17]</strong> Dettmers et al., <em>8-bit Optimizers via Block-wise Quantization</em>, arXiv:2110.02861. <a href="https://arxiv.org/pdf/2110.02861">arxiv.org/pdf/2110.02861</a></li>
+  <li><strong>[R18]</strong> Lv et al., <em>LOMO: Full Parameter Fine-tuning with Limited Resources</em>, arXiv:2306.09782. <a href="https://arxiv.org/pdf/2306.09782">arxiv.org/pdf/2306.09782</a></li>
+  <li><strong>[R19]</strong> <em>Hierarchical Balance Packing for Long-Context SFT</em>, arXiv:2503.07680 &mdash; the 3.8&times; at 32K / 7.3&times; at 128K packing speedups. <a href="https://arxiv.org/pdf/2503.07680">arxiv.org/pdf/2503.07680</a></li>
+  <li><strong>[R20]</strong> Lambert et al., <em>T&uuml;lu 3: Pushing Frontiers in Open Language Model Post-Training</em>, arXiv:2411.15124 &mdash; the 70B RL anchor of 2,880 GPU-hours. <a href="https://arxiv.org/pdf/2411.15124">arxiv.org/pdf/2411.15124</a></li>
+  <li><strong>[R21]</strong> <em>ROLL Flash</em>, arXiv:2510.11345 &mdash; rollout share above 70% of step time. <a href="https://arxiv.org/html/2510.11345">arxiv.org/html/2510.11345</a></li>
+  <li><strong>[R22]</strong> <em>RollPacker</em>, arXiv:2509.21009 &mdash; 70% generation / 21&ndash;23% training step breakdown, and tail-batching speedups. <a href="https://arxiv.org/pdf/2509.21009">arxiv.org/pdf/2509.21009</a></li>
+  <li><strong>[R23]</strong> <em>Olmo 3</em>, arXiv:2512.13961 &mdash; the 20-inference / 8-training node RLVR fleet split. <a href="https://arxiv.org/html/2512.13961v2">arxiv.org/html/2512.13961v2</a></li>
+</ul>
+
+<h4>Classical Tabular / GBDT Coefficients</h4>
+<ul>
+  <li><strong>[R24]</strong> Mitchell, <em>GBM-Benchmarks</em> &mdash; the XGBoost / LightGBM / CatBoost GPU and CPU anchors. <a href="https://github.com/RAMitchell/GBM-Benchmarks">github.com/RAMitchell/GBM-Benchmarks</a></li>
+  <li><strong>[R25]</strong> LightGBM, <em>Experiments</em> &mdash; the single-machine CPU cross-check. <a href="https://lightgbm.readthedocs.io/en/latest/Experiments.html">lightgbm.readthedocs.io/Experiments</a></li>
+  <li><strong>[R26]</strong> LightGBM, <em>GPU Performance</em> &mdash; the small-data GPU penalty. <a href="https://lightgbm.readthedocs.io/en/latest/GPU-Performance.html">lightgbm.readthedocs.io/GPU-Performance</a></li>
+  <li><strong>[R27]</strong> CatBoost, <em>GPU vs CPU training speed benchmarks</em> &mdash; the <code>max_bin</code> slope. <a href="https://github.com/catboost/catboost/tree/master/catboost/benchmarks/gpu_vs_cpu_training_speed">github.com/catboost/catboost</a></li>
+  <li><strong>[R28]</strong> NVIDIA, <em>cuML accelerator benchmarks</em> &mdash; the random-forest anchors. <a href="https://docs.nvidia.com/cuml/latest/cuml-accel/benchmarks/">docs.nvidia.com/cuml</a></li>
+  <li><strong>[R29]</strong> <em>TabArena</em>, arXiv:2506.16791 &mdash; the 200 configs &times; 8 inner folds search scale. <a href="https://arxiv.org/abs/2506.16791">arxiv.org/abs/2506.16791</a></li>
+</ul>
+
+<h4>Accelerator Specifications</h4>
+<ul>
+  <li><strong>[R30]</strong> SemiAnalysis, <em>NVIDIA B300</em> &mdash; the B300 FP4-and-memory-only uplift. <a href="https://inferencex.semianalysis.com/chips/b300">inferencex.semianalysis.com/chips/b300</a></li>
+  <li><strong>[R31]</strong> Lenovo, <em>ThinkSystem HGX B200 product guide</em> &mdash; the per-GPU B200 derivation. <a href="https://lenovopress.lenovo.com/lp2226.pdf">lenovopress.lenovo.com/lp2226.pdf</a></li>
+  <li><strong>[R32]</strong> Google Cloud, <em>TPU v6e</em> and <em>TPU7x</em> documentation. <a href="https://docs.cloud.google.com/tpu/docs/v6e">docs.cloud.google.com/tpu/docs/v6e</a></li>
+</ul>
+
+<p>Per-SKU sources, including the honesty markers on B300 and MI450, are recorded in the notes field of each SKU and shown in the calculator.</p>
+
 <hr>
 
 <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 2rem; text-align: center;">
-  GPU Training &amp; Inference Calculator &mdash; data as of 2026-06-23
+  GPU Training, Inference &amp; Fine-Tuning Calculator &mdash; accelerator specs and model catalog as of 2026-10-14; pricing data as of 2026-06-01
 </p>
 
 </div>
