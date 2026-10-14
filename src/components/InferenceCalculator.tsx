@@ -437,7 +437,7 @@ export function InferenceCalculator() {
                   />
                   <Tooltip
                     contentStyle={{ background: '#1a1d27', border: '1px solid #2e3346', borderRadius: 8, color: '#e1e4ed' }}
-                    formatter={(value: number, name: string) => [`$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name]}
+                    formatter={(value, name) => [`$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })}`, String(name)]}
                     labelFormatter={(label) => `${Number(label).toLocaleString()} req/day`}
                   />
                   <Legend wrapperStyle={{ color: '#8b90a0', fontSize: 11 }} />

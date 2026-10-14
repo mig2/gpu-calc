@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useScenarioStore } from '../store/scenario-store'
 import { GPU_SKUS } from '../engine/gpu-data'
-import { getPeakFlops } from '../engine/hardware-estimator'
+import { getPeakFlops, PRECISION_MFU_FACTORS } from '../engine/hardware-estimator'
 import { REFERENCE_MODELS } from '../engine/reference-models'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceDot, CartesianGrid } from 'recharts'
 
@@ -40,7 +40,9 @@ export function IsoFlopExplorer() {
   if (budgetMode === 'gpu') {
     const gpu = GPU_SKUS.find((g) => g.id === gpuSkuId) ?? GPU_SKUS[0]
     const peak = getPeakFlops(gpu, scenario.precision)
-    const sustained = peak * mfu * scenario.availability
+    // Mirror the main estimator: lower precision does not deliver the full peak ratio.
+    const effectiveMfu = mfu * PRECISION_MFU_FACTORS[scenario.precision]
+    const sustained = peak * effectiveMfu * scenario.availability
     availableFlops = gpuCount * sustained * windowDays * 86_400
   } else {
     availableFlops = results.length > 0 ? results[0].totalFlops : 0
@@ -148,7 +150,7 @@ export function IsoFlopExplorer() {
                 />
                 <Tooltip
                   contentStyle={{ background: '#1a1d27', border: '1px solid #2e3346', borderRadius: 8, color: '#e1e4ed' }}
-                  formatter={(value: number) => [formatParams(value), 'Max Model Size']}
+                  formatter={(value) => [formatParams(Number(value)), 'Max Model Size']}
                   labelFormatter={(label) => `TPP: ${label}`}
                 />
                 <Line type="monotone" dataKey="maxParams" stroke="#6366f1" strokeWidth={2} dot={false} />

@@ -13,7 +13,7 @@ export function ReferenceComparison() {
   const totalFlops = primaryResult.totalFlops
   if (totalFlops <= 0) return null
 
-  const { smaller, larger, closest } = findNearestReferences(totalFlops)
+  const { closest } = findNearestReferences(totalFlops)
   const ratio = totalFlops / closest.estimatedFlops
 
   return (

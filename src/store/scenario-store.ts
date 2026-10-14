@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { TrainingScenario, EstimateResult, Precision, TrainingMode, GpuSku, ModelFamily, TimeSeriesConfig, BaseHardwareConfig, ClassicalTabularConfig } from '../engine/types';
-import { estimateTrainingRun } from '../engine/calculator';
+import type { TrainingScenario, EstimateResult, Precision, TrainingMode, GpuSku, ModelFamily, TabularTokenizationMode, GbdtAlgorithm } from '../engine/types';
+import { estimateTrainingRun, buildHardwareWarnings } from '../engine/calculator';
 import { computeTimeSeriesFlops } from '../engine/adapters/time-series-adapter';
 import { computeTabularFlops } from '../engine/adapters/tabular-adapter';
 import { estimateClassicalTabular } from '../engine/adapters/classical-tabular-adapter';
@@ -29,7 +29,7 @@ const defaultTabConfig = {
   numberOfPretrainingTasks: 1e6,
   rowsPerTask: 1024,
   columnsPerTask: 100,
-  tokenizationMode: 'row' as const,
+  tokenizationMode: 'row' as TabularTokenizationMode,
   epochs: 1,
   architectureType: 'row_transformer' as const,
   architectureFactor: 6,
@@ -38,7 +38,7 @@ const defaultTabConfig = {
 };
 
 const defaultClassicalConfig = {
-  algorithm: 'lightgbm' as const,
+  algorithm: 'lightgbm' as GbdtAlgorithm,
   rows: 1e6,
   columns: 100,
   boostingRounds: 1000,
@@ -46,7 +46,7 @@ const defaultClassicalConfig = {
   bins: 256,
   cvFolds: 1,
   hyperparameterTrials: 1,
-  cpuOrGpu: 'gpu' as const,
+  cpuOrGpu: 'gpu' as 'cpu' | 'gpu',
   throughputCoefficient: 0,
 };
 
@@ -176,6 +176,8 @@ function buildAdapterResults(
           `Optimistic MFU warning: ${(mfu * 100).toFixed(0)}% MFU exceeds typical achieved utilization. Most production runs achieve 30-50%.`,
         );
       }
+      warnings.push(...hwResult.warnings);
+      warnings.push(...buildHardwareWarnings(gpu, scenario.precision));
       if (hwResult.memoryLowerBoundGpus > hwResult.requiredGpus) {
         warnings.push(
           `Memory bound exceeds compute bound: at least ${hwResult.memoryLowerBoundGpus} GPUs needed for model state memory alone (vs ${hwResult.requiredGpus} for compute).`,
@@ -284,7 +286,7 @@ function recompute(state: ScenarioStore, overrides: Partial<Pick<ScenarioStore, 
   return computeResults(s, cg, mf, ts, tab, cl);
 }
 
-export const useScenarioStore = create<ScenarioStore>((set, get) => ({
+export const useScenarioStore = create<ScenarioStore>((set) => ({
   scenario: defaultScenario,
   results: computeResults(defaultScenario, initialCustomGpus),
   customGpus: initialCustomGpus,
