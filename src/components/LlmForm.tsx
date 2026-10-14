@@ -19,11 +19,17 @@ const WINDOW_PRESETS = [
   { label: '60 days', value: 60 * 86_400 },
 ]
 
+/**
+ * Tokens per parameter, keyed to published practice rather than round numbers.
+ * Sourced in docs/research/2026-10-14-llm-training-research.md section 1.5;
+ * the TPP column of section 1.2 is the evidence behind each.
+ */
 const TPP_PRESETS = [
-  { label: '20 (Chinchilla)', value: 20 },
-  { label: '50', value: 50 },
-  { label: '100 (Inference-optimal)', value: 100 },
-  { label: '200 (Over-trained)', value: 200 },
+  { label: '20 (Chinchilla)', value: 20, title: 'Compute-optimal: minimises loss for a fixed TRAINING budget (Hoffmann et al. 2022). Still the right answer to that question, but no 2025-26 production run trains here.' },
+  { label: '26 (replicated)', value: 26, title: "Epoch AI's re-fit of Chinchilla puts the optimum at 25.6. DeepMind's own parametric form reads as high as ~70; the three methods in the original paper disagree." },
+  { label: '150 (frontier dense)', value: 150, title: '2026 practice. Median of Llama 3.1 70B (223), OLMo 3 32B (172), Marin 32B (201) and Qwen3-235B on total params (153).' },
+  { label: '400 (MoE active)', value: 400, title: 'Sparse models on ACTIVE parameters: DeepSeek-V3 is 400, GLM-5 is 712 — while sitting at 22-38 on total params. Use with the active count.' },
+  { label: '1000 (small, served)', value: 1000, title: 'Inference-optimal for a small model serving high volume. Llama 3.1 8B is 1,950; Marin 8B 1,588. Loss keeps falling to ~10,000 TPP with sharply diminishing returns.' },
 ]
 
 const TRAINING_MODES: { label: string; value: TrainingMode }[] = [
@@ -187,7 +193,7 @@ export function LlmForm() {
 
       <fieldset>
         <legend>
-          <Tooltip text="Chinchilla-optimal is ~20 tokens per parameter. Modern practice often over-trains with 100-200+ TPP for better inference efficiency, following insights from Marin and other projects.">
+          <Tooltip text="Tokens of training data per model parameter. Chinchilla's 20 minimises loss for a fixed TRAINING budget; once a model will be served, lifetime compute (train + serve) optimises differently and favours a smaller model trained longer. Published 2026 practice: frontier dense models 150-250, frontier MoE 20-40 on total params (but 400-700 on active), small served models 1,000+. FLOPs scale linearly with this, so it moves the answer directly.">
             Tokens per Parameter
           </Tooltip>
         </legend>

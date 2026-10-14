@@ -361,3 +361,42 @@ describe('formula trace', () => {
     expect(result.trace[7]).toContain('701')
   })
 })
+
+/**
+ * Tokens-per-parameter defaults and guardrails (#74).
+ *
+ * FLOPs are 6 x TPP x N^2, so TPP scales the headline answer linearly. The
+ * store previously defaulted to Chinchilla's 20, which understated tokens,
+ * FLOPs, GPU count and cost by ~7.5x against 2026 practice.
+ */
+describe('tokens-per-parameter', () => {
+  it('scales FLOPs and GPU count linearly', () => {
+    const h100 = getGpuById('h100-sxm')!
+    const at20 = estimateTrainingRun(makeDefaultScenario({ tokensPerParameter: 20 }), h100, getH100Reference())
+    const at150 = estimateTrainingRun(makeDefaultScenario({ tokensPerParameter: 150 }), h100, getH100Reference())
+
+    expect(at150.tokens / at20.tokens).toBeCloseTo(7.5, 6)
+    expect(at150.totalFlops / at20.totalFlops).toBeCloseTo(7.5, 6)
+    // GPU count is ceil()'d, so compare within rounding.
+    expect(at150.requiredGpus / at20.requiredGpus).toBeGreaterThan(7.4)
+    expect(at150.requiredGpus / at20.requiredGpus).toBeLessThan(7.6)
+  })
+
+  it('warns only when the implied corpus exceeds what exists', () => {
+    const h100 = getGpuById('h100-sxm')!
+    const hasWarning = (tpp: number, params: number) =>
+      estimateTrainingRun(
+        makeDefaultScenario({ tokensPerParameter: tpp, modelParameters: params }),
+        h100, getH100Reference(),
+      ).warnings.some((w) => w.includes('Data-availability'))
+
+    // Legitimate choices must stay quiet -- a warning that fires on a shipped
+    // preset is fatigue, not information.
+    expect(hasWarning(20, 70e9)).toBe(false)
+    expect(hasWarning(150, 70e9)).toBe(false)   // 10.5T, well within published corpora
+    expect(hasWarning(1000, 8e9)).toBe(false)   // 8T, matches Llama 3.1 8B practice
+
+    // Implausible: 150 TPP on 405B is 60T tokens, far past any published corpus.
+    expect(hasWarning(150, 405e9)).toBe(true)
+  })
+})

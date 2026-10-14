@@ -116,7 +116,12 @@ type ScenarioStore = {
 
 const defaultScenario: TrainingScenario = {
   modelParameters: 70e9,
-  tokensPerParameter: 20,
+  // 150, not Chinchilla's 20. No 2025-26 production run trains compute-optimal:
+  // the dense median is ~150-250 TPP because lifetime compute (train + serve)
+  // optimises differently from loss-per-training-FLOP. Defaulting to 20
+  // understated tokens, FLOPs, GPUs and cost ~7.5x out of the box (#74).
+  // See docs/research/2026-10-14-llm-training-research.md sections 1.2-1.5.
+  tokensPerParameter: 150,
   trainingWindowSeconds: 30 * 86_400,
   precision: 'BF16_DENSE',
   selectedGpuIds: ['h100-sxm'],

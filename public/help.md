@@ -103,7 +103,7 @@ Estimates training time for gradient-boosted decision tree algorithms (LightGBM,
 
 #### Quick Estimate
 
-Enter model size and training window. The calculator uses Chinchilla-20 defaults and shows a single H100 GPU count. This is the minimum-input mode for napkin math.
+Enter model size and training window. The calculator uses a frontier-dense TPP of 150 by default and shows a single H100 GPU count. This is the minimum-input mode for napkin math.
 
 #### Advanced Estimate
 
@@ -113,7 +113,7 @@ Expand the Advanced Assumptions panel to control:
 - **Availability** -- fraction of wall-clock time spent training (accounts for failures, restarts, maintenance)
 - **Overhead** -- extra compute from checkpointing, evaluation, data stalls
 - **Precision** -- BF16 (standard), FP8 or FP4 (experimental). Lower precisions swap in a higher peak but are penalised by an MFU factor rather than delivering the full peak ratio -- see Section 2.4.
-- **Tokens per parameter** -- override the Chinchilla-20 default. Presets include 20 (Chinchilla), 50, 100 (Inference-optimal), and 200 (Over-trained). See Section 2.5 for details on over-training.
+- **Tokens per parameter** -- override the default of 150 (frontier dense). Presets: 20 (Chinchilla), 26 (replicated), 150 (frontier dense), 400 (MoE active), 1,000 (small, served). See Section 2.5 for the evidence behind each.
 
 All results update live as you adjust sliders.
 
@@ -148,7 +148,7 @@ If the memory lower bound exceeds the compute requirement, the result is flagged
 D = TPP * N
 ```
 
-Where D is training tokens, TPP is tokens-per-parameter (default 20), and N is model parameters. Under Chinchilla-20, a 70B model trains on 1.4T tokens.
+Where D is training tokens, TPP is tokens-per-parameter (default 150), and N is model parameters. At the default, a 70B model trains on 10.5T tokens; at Chinchilla-20 it would be 1.4T.
 
 #### Training FLOPs
 
@@ -234,18 +234,36 @@ This normalizes any GPU type to an H100-equivalent count for apples-to-apples co
 
 LLM mode uses the standard `C = 6ND` FLOP model for dense decoder-only transformers. The tokens-per-parameter (TPP) setting controls the data-to-model ratio and has a major impact on total compute.
 
-#### Over-Training TPP Presets
+#### Tokens-Per-Parameter Presets
 
-The tokens-per-parameter (TPP) presets reflect the evolution of training practice:
+TPP is tokens of training data per model parameter. Because FLOPs are `6 x TPP x N^2`, it scales the answer linearly -- doubling TPP doubles tokens, FLOPs, GPU count and cost.
 
-| Preset | TPP | Rationale |
-|--------|-----|-----------|
-| Chinchilla | 20 | Compute-optimal under the Hoffmann et al. 2022 scaling law [R1]. Minimizes loss for a fixed FLOP budget by balancing model size and data. |
-| 50 | 50 | A moderate over-training ratio, common in early post-Chinchilla models. |
-| Inference-optimal | 100 | Deliberately trains a smaller model on more data. The model is cheaper to serve at inference time while approaching the loss of a larger Chinchilla-optimal model trained with the same compute. See Sardana et al. [R7]. |
-| Over-trained | 200 | Aggressive over-training as practiced by Llama 3, Marin, and other modern projects. Llama 3 8B used ~1,875 tokens per parameter (15T tokens / 8B params); Marin 8B used 200 TPP. The goal is to squeeze maximum quality into a small, fast-to-serve model. |
+**The default is 150, not Chinchilla's 20.** This changed in October 2026. Chinchilla answers "how do I minimise loss for a fixed *training* budget", and 20 is still the right answer to that question. But once a model will be *served*, the thing worth minimising is lifetime compute -- train plus serve -- and that optimises differently, favouring a smaller model trained longer. No 2025-26 production run trains compute-optimal. Defaulting to 20 understated every out-of-the-box estimate by roughly 7.5x.
 
-**Why over-train?** Chinchilla-optimal minimizes training loss for a given compute budget, but it says nothing about inference cost. A 70B Chinchilla-optimal model is expensive to serve. Training a 7B model on 10-20x more tokens costs the same training FLOPs but produces a model that is 10x cheaper per inference query. Modern practice deliberately over-trains smaller models for inference efficiency, accepting slightly higher loss in exchange for dramatically lower serving cost.
+| Preset | TPP | When to use it |
+|--------|-----|----------------|
+| Chinchilla | 20 | Minimising loss per training FLOP, with inference cost not a concern. Hoffmann et al. 2022 [R1]. |
+| Replicated | 26 | Epoch AI's re-fit puts the optimum at 25.6. DeepMind's own parametric form reads as high as ~70 -- the three methods in the original paper disagree with each other, which is why the replication exists. |
+| Frontier dense | **150** (default) | 2026 practice. Median of Llama 3.1 70B (223), OLMo 3 32B (172), Marin 32B (201), Qwen3-235B on total params (153). |
+| MoE active | 400 | Sparse models, applied to **active** parameters. DeepSeek-V3 is 400 and GLM-5 is 712 on active, while both sit at 22-38 on *total* params. |
+| Small, served | 1,000 | Inference-optimal for a small model at high volume. Llama 3.1 8B is 1,950; Marin 8B 1,588. |
+
+**TPP in real runs**, which is the evidence behind the presets:
+
+| Run | Params | Tokens | TPP (total) | TPP (active) |
+|-----|--------|--------|-------------|--------------|
+| GPT-3 175B (2020) | 175B | 300B | 1.7 | -- |
+| Chinchilla 70B (2022) | 70B | 1.4T | 20.0 | -- |
+| Llama 3.1 405B | 405B | 15.6T | 38.5 | -- |
+| Llama 3.1 70B | 70B | 15.6T | 222.9 | -- |
+| Llama 3.1 8B | 8B | 15.6T | 1,950 | -- |
+| DeepSeek-V3 | 671B | 14.8T | 22.1 | 400 |
+| Qwen3-235B-A22B | 235B | 36T | 153.2 | 1,636 |
+| OLMo 3 32B | 32B | 5.5T | 171.9 | -- |
+
+The pattern: **small models are massively over-trained, frontier models sit at 20-40 on total parameters.** Note that DeepSeek-V3 and GLM-5 are near Chinchilla-optimal on *total* params while being 400-712 on *active* -- so "is this over-trained?" depends entirely on which denominator you use.
+
+**A ceiling you cannot dial past.** `D = TPP x N` has to come from a real corpus. Muennighoff et al. found about 4 epochs of repetition is nearly free, with returns decaying sharply after; a 2026 refinement found even that holds only for ~3B models near 1x Chinchilla, with the free-epoch count falling as N and TPP grow. The calculator warns when the implied corpus exceeds roughly 30T tokens -- past the largest published datasets -- because at that point the compute estimate stays correct while the quality implication does not.
 
 ---
 
