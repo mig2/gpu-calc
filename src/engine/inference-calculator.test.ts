@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calculateApiCost, calculateSelfHostCost, calculateBreakeven, generateBreakevenCurve } from './inference-calculator'
+import { calculateApiCost, calculateSelfHostCost, calculateBreakeven, generateBreakevenCurve, DAYS_PER_MONTH } from './inference-calculator'
 import type { ApiModel, CloudGpuInstance, SelfHostEntry } from '../data/types'
 
 const mockApiModel: ApiModel = {
@@ -39,8 +39,8 @@ describe('calculateApiCost', () => {
   it('computes correct monthly cost', () => {
     const result = calculateApiCost(mockApiModel, 'OpenAI', defaultUsage)
     // Daily: 10K * 1000 = 10M input tokens → $25; 10K * 500 = 5M output → $50
-    // Daily total = $75, monthly = $2250
-    expect(result.monthlyCost).toBeCloseTo(2250, 0)
+    // Daily total = $75, monthly = $75 * (365/12) = $2281.25
+    expect(result.monthlyCost).toBeCloseTo(75 * DAYS_PER_MONTH, 2)
   })
 
   it('computes correct cost per request', () => {
@@ -54,9 +54,22 @@ describe('calculateApiCost', () => {
     expect(result.outputCostShare).toBeGreaterThan(result.inputCostShare)
   })
 
-  it('annual cost is ~12x monthly', () => {
+  it('annual cost is exactly 12x monthly', () => {
     const result = calculateApiCost(mockApiModel, 'OpenAI', defaultUsage)
-    expect(result.annualCost).toBeCloseTo(result.monthlyCost * (365 / 30), -1)
+    // A month is 365/12 days, so twelve months is exactly one 365-day year.
+    expect(result.annualCost).toBeCloseTo(result.monthlyCost * 12, 6)
+    expect(result.annualCost).toBeCloseTo(75 * 365, 2)
+  })
+
+  it('cost per request is 0 (not NaN) at zero requests per day', () => {
+    const result = calculateApiCost(mockApiModel, 'OpenAI', {
+      requestsPerDay: 0,
+      avgInputTokens: 1000,
+      avgOutputTokens: 500,
+    })
+    expect(result.costPerRequest).toBe(0)
+    expect(result.monthlyCost).toBe(0)
+    expect(result.annualCost).toBe(0)
   })
 
   it('produces trace', () => {
@@ -69,8 +82,8 @@ describe('calculateSelfHostCost', () => {
   it('computes monthly GPU cost', () => {
     const result = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', defaultUsage)
     // 4 GPUs needed, instance has 8 → 1 instance
-    // $98.32 * 24 * 30 = ~$70,790
-    expect(result.monthlyGpuCost).toBeCloseTo(98.32 * 24 * 30, 0)
+    // $98.32 * 24 * (365/12) = ~$71,774
+    expect(result.monthlyGpuCost).toBeCloseTo(98.32 * 24 * DAYS_PER_MONTH, 2)
   })
 
   it('checks throughput feasibility', () => {
@@ -123,6 +136,16 @@ describe('calculateBreakeven', () => {
     expect(breakeven.apiCheaperBelow).toBe(true)
   })
 
+  it('returns Infinity breakeven at zero volume', () => {
+    const zeroUsage = { requestsPerDay: 0, avgInputTokens: 1000, avgOutputTokens: 500 }
+    const apiResult = calculateApiCost(mockApiModel, 'OpenAI', zeroUsage)
+    const selfHostResult = calculateSelfHostCost(mockThroughput, mockInstance, 'AWS', zeroUsage)
+    const breakeven = calculateBreakeven(apiResult, selfHostResult, zeroUsage)
+    // costPerRequest is 0, so the > 0 guard yields Infinity (never worth self-hosting)
+    expect(breakeven.breakevenRequestsPerDay).toBe(Infinity)
+    expect(breakeven.apiCheaperBelow).toBe(true)
+  })
+
   it('self-host is cheaper at high volume', () => {
     const highUsage = { requestsPerDay: 500000, avgInputTokens: 1000, avgOutputTokens: 500 }
     const apiResult = calculateApiCost(mockApiModel, 'OpenAI', highUsage)
@@ -130,6 +153,13 @@ describe('calculateBreakeven', () => {
     const breakeven = calculateBreakeven(apiResult, selfHostResult, highUsage)
     expect(breakeven.apiCheaperBelow).toBe(false)
     expect(breakeven.monthlySavingsAtCurrentVolume).toBeGreaterThan(0)
+  })
+})
+
+describe('DAYS_PER_MONTH', () => {
+  it('is 365/12 so monthly and annual figures agree', () => {
+    expect(DAYS_PER_MONTH).toBeCloseTo(30.416667, 6)
+    expect(DAYS_PER_MONTH * 12).toBeCloseTo(365, 10)
   })
 })
 

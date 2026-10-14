@@ -29,14 +29,14 @@ export const REFERENCE_MODELS: ReferenceModel[] = [
     name: 'Llama 2 7B',
     parameters: 7e9,
     trainingTokens: 2e12,
-    estimatedFlops: 8.4e19,
+    estimatedFlops: 8.4e22,
     source: 'Touvron et al. 2023',
   },
   {
     name: 'Llama 2 13B',
     parameters: 13e9,
     trainingTokens: 2e12,
-    estimatedFlops: 1.56e20,
+    estimatedFlops: 1.56e23,
     source: 'Touvron et al. 2023',
   },
   {

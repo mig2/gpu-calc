@@ -1,5 +1,12 @@
 import type { ApiModel, CloudGpuInstance, SelfHostEntry } from '../data/types';
 
+/**
+ * Average days in a month (365 / 12 ≈ 30.4167). Used everywhere a monthly
+ * figure is derived so that monthly and annual costs stay consistent:
+ * twelve such months are exactly one 365-day year.
+ */
+export const DAYS_PER_MONTH = 365 / 12;
+
 export type UsagePattern = {
   requestsPerDay: number;
   avgInputTokens: number;
@@ -51,9 +58,13 @@ export function calculateApiCost(
   const dailyOutputCost = (dailyOutputTokens / 1e6) * apiModel.outputPer1M;
   const dailyCost = dailyInputCost + dailyOutputCost;
 
-  const monthlyCost = dailyCost * 30;
-  const annualCost = dailyCost * 365;
-  const costPerRequest = dailyCost / usage.requestsPerDay;
+  const monthlyCost = dailyCost * DAYS_PER_MONTH;
+  // Derived from monthlyCost so annualCost === 12 * monthlyCost holds exactly
+  // (equivalent to dailyCost * 365).
+  const annualCost = monthlyCost * 12;
+
+  const requestsPerDayNonZero = usage.requestsPerDay || 1;
+  const costPerRequest = dailyCost / requestsPerDayNonZero;
 
   const totalDailyCostNonZero = dailyCost || 1;
   const inputCostShare = dailyInputCost / totalDailyCostNonZero;
@@ -97,7 +108,7 @@ export function calculateSelfHostCost(
 
   // Scale cost to match GPU count needed for the model
   const instancesNeeded = Math.ceil(throughput.gpuCount / instance.gpuCount);
-  const monthlyGpuCost = pricePerHr * 24 * 30 * instancesNeeded;
+  const monthlyGpuCost = pricePerHr * 24 * DAYS_PER_MONTH * instancesNeeded;
 
   // Throughput check
   const requiredOutputTokensPerSec = (usage.requestsPerDay * usage.avgOutputTokens) / 86_400;
@@ -139,7 +150,7 @@ export function calculateSelfHostCost(
       `Model: ${throughput.model} on ${throughput.gpuCount}× ${throughput.gpu} (${throughput.framework}, ${throughput.quantization})`,
       `Cloud: ${cloudProviderName} ${instance.instance} @ $${pricePerHr.toFixed(2)}/hr (${pricingTier})`,
       `Instances needed: ${instancesNeeded} (${instancesNeeded * instance.gpuCount} GPUs total)`,
-      `Monthly cost = $${pricePerHr.toFixed(2)} × 24h × 30d × ${instancesNeeded} = $${monthlyGpuCost.toFixed(2)}`,
+      `Monthly cost = $${pricePerHr.toFixed(2)} × 24h × ${DAYS_PER_MONTH.toFixed(4)}d × ${instancesNeeded} = $${monthlyGpuCost.toFixed(2)}`,
       `Required throughput = ${usage.requestsPerDay.toLocaleString()} req/day × ${usage.avgOutputTokens} tokens / 86400s = ${requiredOutputTokensPerSec.toFixed(1)} tok/s`,
       `Max throughput = ${throughput.outputTokensPerSec} tok/s`,
       `Utilization = ${utilizationPercent.toFixed(1)}%`,
@@ -156,8 +167,8 @@ export function calculateBreakeven(
 ): BreakevenResult {
   // Find breakeven: at what request volume does self-host become cheaper?
   // API cost scales linearly with requests. Self-host is fixed.
-  // breakeven = selfHostMonthlyCost / costPerRequest / 30
-  const dailySelfHostCost = selfHostCost.monthlyGpuCost / 30;
+  // breakeven = selfHostMonthlyCost / DAYS_PER_MONTH / costPerRequest
+  const dailySelfHostCost = selfHostCost.monthlyGpuCost / DAYS_PER_MONTH;
   const breakevenRequestsPerDay = apiCost.costPerRequest > 0
     ? Math.ceil(dailySelfHostCost / apiCost.costPerRequest)
     : Infinity;
