@@ -1,40 +1,83 @@
 {
-  "lastUpdated": "2026-06-01",
+  "lastUpdated": "2026-10-14",
+  "note": "Every rate here was read on 2026-10-14 from the provider's own pricing page (the `sourceUrl` on each model); no figure is carried over from memory or from a price-comparison aggregator. Rows priced in tiers record the base tier and name the tier in `note` — length tiers, time-of-day rates and announced step-ups are not modeled (issue #105). `cacheWritePer1M` is Anthropic's 5-minute-TTL write; its 1-hour writes cost 2x base input, and the other providers do not bill cache writes separately. Context windows come from each vendor's model page rather than its pricing page (OpenAI developers.openai.com/api/docs/models/*, Google ai.google.dev/gemini-api/docs/models/*, Anthropic platform.claude.com/docs/en/models/overview, Mistral docs.mistral.ai/models/*); for open-weight models served by Together, Fireworks and DeepInfra the window is `max_position_embeddings` from the model's own config.json on Hugging Face. API prices move every few weeks and whole model families turn over in months — re-verify against the source URLs before trusting any figure, and treat anything older than a quarter as stale.",
   "providers": [
-    {
-      "provider": "OpenAI",
-      "models": [
-        { "model": "GPT-4o", "inputPer1M": 2.50, "outputPer1M": 10.00, "contextWindow": 128000 },
-        { "model": "GPT-4o-mini", "inputPer1M": 0.15, "outputPer1M": 0.60, "contextWindow": 128000 },
-        { "model": "o1", "inputPer1M": 15.00, "outputPer1M": 60.00, "contextWindow": 200000 }
-      ]
-    },
     {
       "provider": "Anthropic",
       "models": [
-        { "model": "Claude Sonnet 4", "inputPer1M": 3.00, "outputPer1M": 15.00, "contextWindow": 200000 },
-        { "model": "Claude Opus 4", "inputPer1M": 15.00, "outputPer1M": 75.00, "contextWindow": 200000 },
-        { "model": "Claude Haiku 3.5", "inputPer1M": 0.80, "outputPer1M": 4.00, "contextWindow": 200000 }
+        { "model": "Claude Fable 5.1", "modelId": "claude-fable-5-1", "inputPer1M": 10.00, "outputPer1M": 50.00, "cacheReadPer1M": 0.25, "cacheWritePer1M": 12.50, "contextWindow": 1000000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor", "note": "Cache hits are 0.025x base input on Fable 5.1 and Mythos 5.1." },
+        { "model": "Claude Opus 5.5", "modelId": "claude-opus-5-5", "inputPer1M": 4.00, "outputPer1M": 20.00, "cacheReadPer1M": 0.20, "cacheWritePer1M": 5.00, "contextWindow": 1000000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor", "note": "Cache hits are 0.05x base input on Opus 5.5 and Sonnet 5.5." },
+        { "model": "Claude Opus 5", "modelId": "claude-opus-5", "inputPer1M": 5.00, "outputPer1M": 25.00, "cacheReadPer1M": 0.50, "cacheWritePer1M": 6.25, "contextWindow": 1000000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor" },
+        { "model": "Claude Sonnet 5.5", "modelId": "claude-sonnet-5-5", "inputPer1M": 2.00, "outputPer1M": 10.00, "cacheReadPer1M": 0.10, "cacheWritePer1M": 2.50, "contextWindow": 1000000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor", "note": "Cache hits are 0.05x base input on Opus 5.5 and Sonnet 5.5." },
+        { "model": "Claude Haiku 5.5", "modelId": "claude-haiku-5-5", "inputPer1M": 0.10, "outputPer1M": 0.50, "cacheReadPer1M": 0.01, "cacheWritePer1M": 0.125, "contextWindow": 1000000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor", "note": "Priced by prompt length: these are the rates for prompts up to 100,000 tokens. A request whose prompt exceeds 100,000 tokens pays 5x on every category ($0.50 in / $2.50 out / $0.05 cache read), priced per request." },
+        { "model": "Claude Haiku 4.5", "modelId": "claude-haiku-4-5", "inputPer1M": 1.00, "outputPer1M": 5.00, "cacheReadPer1M": 0.10, "cacheWritePer1M": 1.25, "contextWindow": 200000, "batchDiscount": 0.5, "sourceUrl": "https://platform.claude.com/docs/en/about-claude/pricing", "sourceQuality": "vendor", "note": "Legacy. The 1M-token window at standard pricing starts at the 4.6 generation; Haiku 4.5 is 200K. Models before Claude 4.7 also use the older tokenizer, which produces ~30% fewer tokens for the same text than the current one — comparing it against a 5.x model at equal token counts compares unequal amounts of text." }
+      ]
+    },
+    {
+      "provider": "OpenAI",
+      "models": [
+        { "model": "gpt-6-astra", "modelId": "gpt-6-astra", "inputPer1M": 10.00, "outputPer1M": 50.00, "cacheReadPer1M": 1.00, "contextWindow": 1050000, "batchDiscount": 0.5, "sourceUrl": "https://developers.openai.com/api/docs/pricing", "sourceQuality": "vendor", "note": "Short-context tier (prompts up to 272K input tokens). Long context (>272K) is $20.00 in / $2.00 cached / $75.00 out." },
+        { "model": "gpt-6.1-sol", "modelId": "gpt-6.1-sol", "inputPer1M": 2.00, "outputPer1M": 10.00, "cacheReadPer1M": 0.10, "contextWindow": 1050000, "batchDiscount": 0.5, "sourceUrl": "https://developers.openai.com/api/docs/pricing", "sourceQuality": "vendor", "note": "Short-context tier (up to 272K input). Long context is $4.00 in / $0.20 cached / $15.00 out." },
+        { "model": "gpt-5.6-sol", "modelId": "gpt-5.6-sol", "inputPer1M": 4.00, "outputPer1M": 20.00, "cacheReadPer1M": 0.40, "contextWindow": 1050000, "batchDiscount": 0.5, "sourceUrl": "https://developers.openai.com/api/docs/pricing", "sourceQuality": "vendor", "note": "Short-context tier (up to 272K input). Long context is $8.00 in / $0.80 cached / $30.00 out." },
+        { "model": "gpt-5.6-luna", "modelId": "gpt-5.6-luna", "inputPer1M": 0.20, "outputPer1M": 1.20, "cacheReadPer1M": 0.02, "contextWindow": 1050000, "batchDiscount": 0.5, "sourceUrl": "https://developers.openai.com/api/docs/pricing", "sourceQuality": "vendor", "note": "Short-context tier (up to 272K input). Long context is $0.40 in / $0.04 cached / $1.80 out." },
+        { "model": "gpt-6-luna", "modelId": "gpt-6-luna", "inputPer1M": 0.10, "outputPer1M": 0.50, "cacheReadPer1M": 0.01, "contextWindow": 1050000, "batchDiscount": 0.5, "sourceUrl": "https://developers.openai.com/api/docs/pricing", "sourceQuality": "vendor", "note": "Short-context tier (up to 272K input). Long context is $0.20 in / $0.02 cached / $0.75 out." }
       ]
     },
     {
       "provider": "Google",
       "models": [
-        { "model": "Gemini 2.5 Pro", "inputPer1M": 1.25, "outputPer1M": 10.00, "contextWindow": 1000000 },
-        { "model": "Gemini 2.5 Flash", "inputPer1M": 0.15, "outputPer1M": 0.60, "contextWindow": 1000000 }
+        { "model": "Gemini 4 Argon", "modelId": "gemini-4-argon", "inputPer1M": 2.00, "outputPer1M": 10.00, "cacheReadPer1M": 0.10, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Promotional pricing through 2026-11-30. From 2026-12-01 the published rates rise to $4.00 in / $20.00 out / $0.20 cached." },
+        { "model": "Gemini 3.1 Pro Preview", "modelId": "gemini-3.1-pro-preview", "inputPer1M": 2.00, "outputPer1M": 12.00, "cacheReadPer1M": 0.20, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Rates for prompts up to 200K tokens; above 200K it is $4.00 in / $18.00 out / $0.40 cached. Context caching also bills $4.50 per MTok-hour of storage, which this type cannot represent." },
+        { "model": "Gemini 2.5 Pro", "modelId": "gemini-2.5-pro", "inputPer1M": 1.25, "outputPer1M": 10.00, "cacheReadPer1M": 0.125, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Legacy. Rates for prompts up to 200K tokens; above 200K it is $2.50 in / $15.00 out / $0.25 cached, plus $4.50 per MTok-hour of cache storage." },
+        { "model": "Gemini 3.8 Flash", "modelId": "gemini-3.8-flash", "inputPer1M": 0.75, "outputPer1M": 3.75, "cacheReadPer1M": 0.075, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Promotional pricing through 2026-12-31. From 2027-01-01 it is $1.50 in / $7.50 out / $0.15 cached. Context caching also bills $0.50 per MTok-hour of storage (rising to $1.00)." },
+        { "model": "Gemini 3.5 Flash-Lite", "modelId": "gemini-3.5-flash-lite", "inputPer1M": 0.30, "outputPer1M": 2.50, "cacheReadPer1M": 0.03, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Context caching also bills $1.00 per MTok-hour of storage." },
+        { "model": "Gemini 2.5 Flash", "modelId": "gemini-2.5-flash", "inputPer1M": 0.30, "outputPer1M": 2.50, "cacheReadPer1M": 0.03, "contextWindow": 1048576, "batchDiscount": 0.5, "sourceUrl": "https://ai.google.dev/gemini-api/docs/pricing", "sourceQuality": "vendor", "note": "Legacy. Text/image/video input rate; audio input is $1.00/MTok. Context caching also bills $1.00 per MTok-hour of storage. Supersedes the $0.15/$0.60 figures this file carried before 2026-10-14, which were wrong in both directions." }
       ]
     },
     {
       "provider": "Mistral",
       "models": [
-        { "model": "Mistral Large", "inputPer1M": 2.00, "outputPer1M": 6.00, "contextWindow": 128000 },
-        { "model": "Mistral Small", "inputPer1M": 0.10, "outputPer1M": 0.30, "contextWindow": 128000 }
+        { "model": "Mistral Medium 3.5", "modelId": "mistral-medium-3-5", "inputPer1M": 1.50, "outputPer1M": 7.50, "cacheReadPer1M": 0.15, "contextWindow": 256000, "sourceUrl": "https://docs.mistral.ai/inference/pricing", "sourceQuality": "vendor" },
+        { "model": "Mistral Large 4", "modelId": "mistral-large-4", "inputPer1M": 0.68, "outputPer1M": 2.09, "cacheReadPer1M": 0.07, "contextWindow": 1000000, "sourceUrl": "https://docs.mistral.ai/inference/pricing", "sourceQuality": "vendor" },
+        { "model": "Mistral Large 3", "modelId": "mistral-large-2512", "inputPer1M": 0.50, "outputPer1M": 1.50, "cacheReadPer1M": 0.05, "contextWindow": 256000, "sourceUrl": "https://docs.mistral.ai/inference/pricing", "sourceQuality": "vendor" },
+        { "model": "Ministral 3 14B", "modelId": "ministral-14b-2512", "inputPer1M": 0.20, "outputPer1M": 0.20, "cacheReadPer1M": 0.02, "contextWindow": 256000, "sourceUrl": "https://docs.mistral.ai/inference/pricing", "sourceQuality": "vendor" },
+        { "model": "Mistral Small 4", "modelId": "mistral-small-2603", "inputPer1M": 0.15, "outputPer1M": 0.60, "cacheReadPer1M": 0.015, "contextWindow": 256000, "sourceUrl": "https://docs.mistral.ai/inference/pricing", "sourceQuality": "vendor" }
       ]
     },
     {
       "provider": "DeepSeek",
       "models": [
-        { "model": "DeepSeek-V3", "inputPer1M": 0.27, "outputPer1M": 1.10, "contextWindow": 128000 }
+        { "model": "DeepSeek-V4-Pro-0813", "modelId": "deepseek-v4-pro", "inputPer1M": 1.32, "outputPer1M": 3.96, "cacheReadPer1M": 0.044, "contextWindow": 1000000, "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing", "sourceQuality": "vendor", "note": "Peak rates. DeepSeek prices by time of day: off-peak is half of these ($0.66 in / $1.98 out / $0.022 cache hit). Peak is 01:00-04:00 and 06:00-10:00 UTC, Mon-Fri. `inputPer1M` is the cache-miss input rate." },
+        { "model": "DeepSeek-V4.1-Flash", "modelId": "deepseek-flash", "inputPer1M": 0.30, "outputPer1M": 1.20, "cacheReadPer1M": 0.006, "contextWindow": 1000000, "sourceUrl": "https://api-docs.deepseek.com/quick_start/pricing", "sourceQuality": "vendor", "note": "Peak rates. Off-peak is half of these ($0.15 in / $0.60 out / $0.003 cache hit). Peak is 01:00-04:00 and 06:00-10:00 UTC, Mon-Fri. `inputPer1M` is the cache-miss input rate." }
+      ]
+    },
+    {
+      "provider": "Together",
+      "models": [
+        { "model": "Kimi K3", "inputPer1M": 3.00, "outputPer1M": 15.00, "cacheReadPer1M": 0.30, "contextWindow": 1048576, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is max_position_embeddings from moonshotai/Kimi-K3 config.json." },
+        { "model": "Qwen3.8-2.4T-A95B", "inputPer1M": 2.00, "outputPer1M": 6.00, "cacheReadPer1M": 0.25, "contextWindow": 262144, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is max_position_embeddings from Qwen/Qwen3.8-2.4T-A95B config.json." },
+        { "model": "GLM-5.3", "inputPer1M": 1.40, "outputPer1M": 4.40, "cacheReadPer1M": 0.26, "contextWindow": 1048576, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is max_position_embeddings from zai-org/GLM-5.3 config.json." },
+        { "model": "DeepSeek V4 Pro 0813", "inputPer1M": 1.32, "outputPer1M": 3.96, "cacheReadPer1M": 0.13, "contextWindow": 1000000, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is DeepSeek's own published 1M figure, not stated by Together." },
+        { "model": "DeepSeek V4.1 Flash", "inputPer1M": 0.30, "outputPer1M": 1.20, "cacheReadPer1M": 0.006, "contextWindow": 1048576, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is max_position_embeddings from deepseek-ai/DeepSeek-V4.1-Flash config.json." },
+        { "model": "GLM-5.3-Flash", "inputPer1M": 0.15, "outputPer1M": 0.50, "cacheReadPer1M": 0.03, "contextWindow": 1048576, "sourceUrl": "https://www.together.ai/pricing", "sourceQuality": "vendor", "note": "Serverless tier. Context window is max_position_embeddings from zai-org/GLM-5.3-Flash config.json." }
+      ]
+    },
+    {
+      "provider": "Fireworks",
+      "models": [
+        { "model": "Kimi K3", "inputPer1M": 3.00, "outputPer1M": 15.00, "cacheReadPer1M": 0.30, "contextWindow": 1048576, "sourceUrl": "https://docs.fireworks.ai/serverless/pricing", "sourceQuality": "vendor", "note": "Standard serverless tier; the Priority tier is 25% higher across the board. Context window is max_position_embeddings from moonshotai/Kimi-K3 config.json." },
+        { "model": "GLM 5.3", "inputPer1M": 1.40, "outputPer1M": 4.40, "cacheReadPer1M": 0.26, "contextWindow": 1048576, "sourceUrl": "https://docs.fireworks.ai/serverless/pricing", "sourceQuality": "vendor", "note": "Standard serverless tier; Priority is 25% higher. Context window is max_position_embeddings from zai-org/GLM-5.3 config.json." },
+        { "model": "DeepSeek V4.1 Flash", "inputPer1M": 0.30, "outputPer1M": 1.20, "cacheReadPer1M": 0.006, "contextWindow": 1048576, "sourceUrl": "https://docs.fireworks.ai/serverless/pricing", "sourceQuality": "vendor", "note": "Standard serverless tier; Priority is 25% higher. Context window is max_position_embeddings from deepseek-ai/DeepSeek-V4.1-Flash config.json." },
+        { "model": "GLM 5.3 Flash", "inputPer1M": 0.15, "outputPer1M": 0.50, "cacheReadPer1M": 0.03, "contextWindow": 1048576, "sourceUrl": "https://docs.fireworks.ai/serverless/pricing", "sourceQuality": "vendor", "note": "Standard serverless tier; Priority is 25% higher. Context window is max_position_embeddings from zai-org/GLM-5.3-Flash config.json." },
+        { "model": "GPT OSS 120B", "inputPer1M": 0.15, "outputPer1M": 0.60, "cacheReadPer1M": 0.015, "contextWindow": 131072, "sourceUrl": "https://docs.fireworks.ai/serverless/pricing", "sourceQuality": "vendor", "note": "Standard serverless tier; Priority is 25% higher. Context window is max_position_embeddings from openai/gpt-oss-120b config.json. Fireworks also publishes parameter-count pricing for models without a named rate: <4B $0.10/MTok, 4-16B $0.20, >16B $0.90, MoE up to 56B $0.50, MoE 56-176B $1.20 — the same rate for input and output." }
+      ]
+    },
+    {
+      "provider": "DeepInfra",
+      "models": [
+        { "model": "Kimi-K3", "inputPer1M": 2.85, "outputPer1M": 14.25, "cacheReadPer1M": 0.285, "contextWindow": 1048576, "sourceUrl": "https://deepinfra.com/pricing", "sourceQuality": "vendor", "note": "Context window is max_position_embeddings from moonshotai/Kimi-K3 config.json; DeepInfra does not publish the window it serves." },
+        { "model": "DeepSeek-V4-Pro", "inputPer1M": 1.30, "outputPer1M": 2.60, "cacheReadPer1M": 0.10, "contextWindow": 1000000, "sourceUrl": "https://deepinfra.com/pricing", "sourceQuality": "vendor", "note": "Context window is DeepSeek's own published 1M figure; DeepInfra does not publish the window it serves." },
+        { "model": "Qwen3.5-397B-A17B", "inputPer1M": 0.45, "outputPer1M": 3.00, "cacheReadPer1M": 0.22, "contextWindow": 262144, "sourceUrl": "https://deepinfra.com/pricing", "sourceQuality": "vendor", "note": "Context window is max_position_embeddings from Qwen/Qwen3.5-397B-A17B config.json; DeepInfra does not publish the window it serves." }
       ]
     }
   ]

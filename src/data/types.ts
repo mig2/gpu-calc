@@ -1,8 +1,55 @@
+/**
+ * Whether a recorded rate was read from the vendor's own pricing page or from a
+ * third-party price aggregator. Aggregator figures have been wrong by ~79% in
+ * past research passes, so the distinction is worth carrying in the data.
+ */
+export type SourceQuality = 'vendor' | 'aggregator';
+
+/**
+ * One callable API model and its list rates.
+ *
+ * Every optional field is optional because the vendor may not publish it, not
+ * because it is unimportant: an absent `cacheReadPer1M` means "this provider
+ * does not publish a cache-hit rate", never "cache reads are free". A missing
+ * figure is deliberate — a plausible-looking wrong price would be worse, and on
+ * a buy-vs-build tool every pricing error lands on the buy side of the scale.
+ *
+ * Cache fields matter more than their optionality suggests. Cache reads cost
+ * 2.5–10% of base input and agentic workloads run >85% cache hits by token
+ * volume, so a model priced without them systematically overstates API cost.
+ *
+ * Tiered pricing (length tiers, time-of-day, promotional step-ups) is *not*
+ * modeled — see issue #105. Rows record the base tier and name the tier in
+ * `note`.
+ */
 export type ApiModel = {
   model: string;
   inputPer1M: number;    // $ per 1M input tokens
   outputPer1M: number;   // $ per 1M output tokens
   contextWindow: number;
+  /** The provider's own API model id, where it publishes one. */
+  modelId?: string;
+  /** $ per 1M cached-input ("cache hit") tokens. */
+  cacheReadPer1M?: number;
+  /**
+   * $ per 1M tokens to write a prefix into the cache. Absent where the provider
+   * does not bill cache writes separately from base input (OpenAI, Google,
+   * DeepSeek and the open-model hosts all fold the write into input).
+   */
+  cacheWritePer1M?: number;
+  /** Fraction off list on the provider's batch/async API — 0.5 means 50% off. */
+  batchDiscount?: number;
+  /** Exact URL the rates were read from. */
+  sourceUrl?: string;
+  /**
+   * Where the rates came from. Declared as the union widened to `string`
+   * because `api-pricing.json` is imported directly and TypeScript widens JSON
+   * string literals; narrowing this to bare `SourceQuality` would need a cast
+   * at the import site, which is outside this data-only pass.
+   */
+  sourceQuality?: SourceQuality | (string & {});
+  /** Which tier is recorded, announced increases, and other caveats. */
+  note?: string;
 };
 
 export type ApiProvider = {
@@ -12,6 +59,7 @@ export type ApiProvider = {
 
 export type ApiPricingData = {
   lastUpdated: string;
+  note: string;
   providers: ApiProvider[];
 };
 
